@@ -25,9 +25,10 @@ class MelodyEncoder(object):
         self.encoder_lut = {k: v + 2 for v, k in enumerate(allowed_pitches)}
         self.decoder_lut = {v: k for k, v in self.encoder_lut.iteritems()}
         self.num_pitches = len(self.allowed_pitches)
-        self.num_symbols = self.num_pitches + 2
+        self.num_symbols = self.num_pitches + 2 ## what is the 2
         self.num_time_steps = self.time_resolution * self.total_time
         self.sixteeth_time = self.bar_time / 16.0
+        self.num_vel_symbols = 127  # adding velocity symbols
 
     def __dict__(self):
         return dict({
@@ -54,11 +55,12 @@ class MelodyEncoder(object):
         inst = midi.instruments[instrument_index]
         assert not inst.is_drum
 
+        # sampling notes at higher resolution
         us = 10
         steps_per_s = us*self.time_resolution
         map_steps = int(self.total_time*steps_per_s)
         note_map = np.zeros((self.num_symbols, map_steps))
-
+        vel_map = np.zeros((self.num_vel_symbols, map_steps))
         for note in inst.notes:
             if note.pitch not in self.allowed_pitches:
                 logger.warn('ignoring unsupported pitch = ' + str(note.pitch))
@@ -67,16 +69,24 @@ class MelodyEncoder(object):
                 logger.warn('ignoring late note at = ' + str(note.start))
                 continue
             symbol_n = self.encoder_lut[note.pitch]
+            # add velocity symbol
+            velocity = note.velocity
+            symbol_v = velocity
             start_n = int(note.start*steps_per_s)
             end_n = min(int(note.end*steps_per_s), map_steps - 1)
 
             note_map[symbol_n, start_n:end_n] = 1
+            vel_map[symbol_v, start_n:end_n] = velocity
 
         ave_width = us // 2 + 1
         ave = np.ones(ave_width)/float(ave_width)
         note_map = convolve1d(note_map, ave, axis=1)
+        # velocity note map
+        vel_map = convolve1d(vel_map, ave, axis=1)
+        #print("shapes", note_map.shape, vel_map.shape)
+
         accum = np.zeros(self.num_symbols)
-        symbols = np.empty(map_steps)
+        symbols = np.empty(map_steps) # 32 * 10
         for step_n in range(map_steps):
             if np.sum(note_map[:, step_n]) == 0:
                 accum *= 0
@@ -85,15 +95,42 @@ class MelodyEncoder(object):
                 accum *= note_map[:, step_n] > 0
                 accum += note_map[:, step_n]
                 symbols[step_n] = np.argmax(accum)
+
+        ## create velocity symbols
+        accum_vel = np.zeros(self.num_vel_symbols)
+        symbols_v = np.empty(map_steps) # 32 * 10
+        for step_n in range(map_steps):
+            if np.sum(vel_map[:, step_n]) == 0:
+                accum_vel *= 0
+                symbols_v[step_n] = self.no_note
+            else:
+                accum_vel *= vel_map[:, step_n] > 0
+                accum_vel += vel_map[:, step_n]
+                symbols_v[step_n] = np.argmax(accum_vel)
+
+        # set up encode array
         encoding = np.ones(self.num_time_steps, dtype=np.uint8)
+        # set up encode velocity array
+        encoding_v = np.ones(self.num_time_steps, dtype=np.uint8)
+        # set symbol according to notes pressed and held
+
         encoding[:] = symbols[::us]
+        # replace held note symbols with 0
         held_key = None
         for step_n, cur_key in enumerate(encoding):
             if cur_key > 1 and cur_key == held_key:
                 encoding[step_n] = self.hold_note
             held_key = cur_key
+        #print("encoding notes", encoding)
 
-        return encoding
+        # populate velocity array at lower resolution
+        encoding_v[:] = symbols_v[::us]
+        for step_n, cur_key in enumerate(encoding_v):
+            if cur_key > 1 and cur_key == held_key:
+                encoding_v[step_n] = self.hold_note
+            held_key = cur_key
+        #print("velocty encode", encoding_v)
+        return encoding, encoding_v
 
     def encode_ohc(self, midi, instrument_index=0):
         """
@@ -107,11 +144,11 @@ class MelodyEncoder(object):
 
         # TODO: naive approach. make this more efficient?
         for step_n in range(self.num_time_steps):
-            ohcs[step_n, symbols[step_n]] = 1.0
-
+            velocity_n = symbols[1][step_n]
+            ohcs[step_n, symbols[0][step_n]] = 1.0 * velocity_n / self.num_vel_symbols
         return ohcs
 
-    def decode(self, encoding,
+    def decode(self, encoding, encoding_v,
                program=pm.instrument_name_to_program('Acoustic Grand Piano')):
         """
         Decode a symbol sequence into a pretty midi object
@@ -124,17 +161,25 @@ class MelodyEncoder(object):
         midi = pm.PrettyMIDI()
         inst = pm.Instrument(program=program)
 
+        print("decoding inputs", encoding, encoding_v)
         start_time = None
         cur_key = None
         key_on = False
         for elem_n, elem in enumerate(encoding):
             # start note
+            #if not key_on and elem > self.no_note:
             if not key_on and elem > self.no_note:
                 key_on = True
                 cur_key = elem
+                cur_vel_index = elem_n
                 start_time = float(elem_n)/self.time_resolution
+                #print("record keys", cur_key, cur_vel_index)
 
-            # hold no note
+            # hold note
+            elif key_on and elem == self.hold_note:
+                pass
+
+            # no note
             elif not key_on and elem == self.no_note:
                 pass
 
@@ -142,36 +187,35 @@ class MelodyEncoder(object):
             elif not key_on and elem == self.hold_note:
                 pass
 
-            # hold note
-            elif key_on and elem == self.hold_note:
-                pass
-
-            # stop note
+            # stop note, when a 1 is detected and key is still pressed
             elif key_on and elem == self.no_note:
                 stop_time = float(elem_n)/self.time_resolution
                 inst.notes.append(
-                    pm.Note(velocity=self.default_velocity,
+                    pm.Note(velocity=encoding_v[cur_vel_index],  # velocity=self.velocity
                             pitch=self.decoder_lut[cur_key],
                             start=start_time, end=stop_time))
 
                 key_on = False
                 cur_key = None
+                cur_vel_index = None
                 start_time = None
-            # stop note and start new note
+
+            # stop note and start new note, if no 1 is detected goes (key up)
             elif key_on and elem > self.no_note:
                 stop_time = float(elem_n)/self.time_resolution
                 inst.notes.append(
-                    pm.Note(velocity=self.default_velocity,
-                            pitch=self.decoder_lut[cur_key],
-                            start=start_time, end=stop_time))
-
+                            pm.Note(velocity=encoding_v[cur_vel_index],
+                                    pitch=self.decoder_lut[cur_key],
+                                    start=start_time, end=stop_time))
                 key_on = True
                 cur_key = elem
+                cur_vel_index = elem_n
                 start_time = stop_time
-        if key_on:
+
+        if key_on: ## final note
             stop_time = float(len(encoding))/self.time_resolution
             inst.notes.append(
-                pm.Note(velocity=self.default_velocity,
+                pm.Note(velocity=encoding_v[cur_vel_index],
                         pitch=self.decoder_lut[cur_key],
                         start=start_time, end=stop_time))
         midi.instruments.append(inst)
