@@ -1,6 +1,9 @@
 import atexit
 import argparse
-import StringIO
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 import logging
 import sys
 import traceback

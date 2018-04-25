@@ -1,14 +1,155 @@
 import json
+import sys
 import numpy as np
+from abc import ABC, abstractmethod
+import logging
 import pretty_midi as pm
 from scipy.ndimage import convolve1d
 from midigen.package import logger
 
 
+_LOGGER = logging.getLogger('midigen-encoder')
+
+
+def encoder_from_dict(the_dict):
+    return getattr(sys.modules[__name__], the_dict['encoder_type'])(**the_dict)
+
+
+class Encoder(ABC):
+    encoding_channels = NotImplemented  # type: int
+
+    @abstractmethod
+    def encode(self, midi, instrument_index):
+        """
+        Encode a pretty midi object into an encoding
+
+        :param midi a pretty_midi midi object
+        :param instrument_index index of the instrument to encode
+        :return the numpy encoding array
+        """
+        pass
+
+    @abstractmethod
+    def decode(self, encoding, program):
+        """
+        Decode an encoding into a pretty midi object
+
+        :param encoding: the encoded numpy array
+        :param program: pretty_midi instrument program
+        :return: a pretty_midi midi object
+        """
+        pass
+
+
+class PolyEncoder(Encoder):
+    def __init__(self, allowed_pitches, sample_frequency, press_threshold, hold_threshold, max_len, **kwargs):
+        self.allowed_pitches = allowed_pitches
+        self.num_pitches = len(allowed_pitches)
+        self.sample_frequency = sample_frequency
+        self.press_threshold = press_threshold
+        self.hold_threshold = hold_threshold
+        self.max_len = max_len
+
+        self.velocity_scale = 1.0/127.0
+        self.velocity_offset = 1
+        self.hold_offset = 2
+        self.chans_per_pitch = 3
+        self.encoding_channels = self.chans_per_pitch*self.num_pitches
+        self.pitch_to_index = {p: n for n, p in enumerate(allowed_pitches)}
+        self.index_to_pitch = {n: p for p, n in self.pitch_to_index.items()}
+
+    def encode(self, midi, instrument_index):
+        inst = midi.instruments[instrument_index]
+        assert not inst.is_drum
+        end_time = min(inst.notes[-1].end, self.max_len)
+        total_samples = int(end_time*self.sample_frequency + 1)
+        encoding = np.zeros((total_samples, self.encoding_channels))
+
+        for note in inst.notes:
+            if note.pitch not in self.allowed_pitches:
+                _LOGGER.warning(f'Ignoring disallowed pitch: {note.pitch}')
+                continue
+
+            start_sample = int(np.ceil(note.start*self.sample_frequency))
+            end_sample = int(np.floor(note.end*self.sample_frequency))
+            pitch_index = self.pitch_to_index[note.pitch]
+            encoding[start_sample, pitch_index*self.chans_per_pitch] = 1.0
+            encoding[start_sample, pitch_index*self.chans_per_pitch + self.velocity_offset] = \
+                note.velocity*self.velocity_scale
+
+            # set hold channel
+            if end_sample > start_sample:
+                encoding[start_sample + 1:end_sample + 1, pitch_index*self.chans_per_pitch + self.hold_offset] = 1.0
+
+        return encoding
+
+    def decode(self, encoding, program):
+
+        midi = pm.PrettyMIDI()
+        inst = pm.Instrument(program=program)
+
+        key_state = np.zeros(self.num_pitches, dtype=np.uint8)
+        start_sample = np.zeros(self.num_pitches, dtype=np.uint32)
+        velocity_state = np.zeros(self.num_pitches, dtype=np.uint8)
+        hold_count = np.zeros(self.num_pitches, dtype=np.uint32)
+
+        def press_key(pitch_index, velocity, sample_index):
+            key_state[pitch_index] = 1
+            velocity_state[pitch_index] = velocity
+            hold_count[pitch_n] = 0
+            start_sample[pitch_n] = sample_index
+
+        def release_key(pitch_index):
+            start_time = start_sample[pitch_index]/self.sample_frequency
+            end_time = start_time + (1+hold_count[pitch_n])/self.sample_frequency
+            inst.notes.append(
+                pm.Note(velocity=velocity_state[pitch_index],
+                        pitch=self.index_to_pitch[pitch_index],
+                        start=start_time,
+                        end=end_time))
+            key_state[pitch_index] = 0
+            velocity_state[pitch_index] = 0
+            hold_count[pitch_n] = 0
+            start_sample[pitch_n] = 0
+
+        for sample_n in range(encoding.shape[0]):
+            for pitch_n in range(self.num_pitches):
+
+                # key is pressed
+                if encoding[sample_n, self.chans_per_pitch*pitch_n] > self.press_threshold:
+                    # key was previously being held, release key
+                    if key_state[pitch_n] == 1:
+                        release_key(pitch_n)
+
+                    # start new press
+                    vel_n = self.chans_per_pitch * pitch_n + self.velocity_offset
+                    vel = encoding[sample_n, vel_n]/self.velocity_scale
+                    press_key(pitch_n, vel, sample_n)
+
+                # key is held
+                elif encoding[sample_n, self.chans_per_pitch*pitch_n+self.hold_offset] > self.hold_threshold and \
+                        key_state[pitch_n] == 1:
+                    hold_count[pitch_n] += 1
+
+                # key is released
+                elif key_state[pitch_n] == 1:
+                    release_key(pitch_n)
+
+                # no activity on key
+                else:
+                    pass
+
+        # release all keys held at the end
+        for pitch_n in range(self.num_pitches):
+            if key_state[pitch_n] == 1:
+                release_key(pitch_n)
+
+        midi.instruments.append(inst)
+        return midi
+
+
 class MelodyEncoder(object):
     def __init__(self, allowed_pitches, time_resolution, num_bars, bar_time):
-
-
         # set properties
         self.allowed_pitches = allowed_pitches
         self.time_resolution = time_resolution

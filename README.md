@@ -4,6 +4,12 @@
 
 1) install anaconda 2 from https://www.anaconda.com/download/
 
+1b) if installing on Ubuntu you need ALSA and JACK libraries installed:
+
+```
+sudo apt-get install libasound2-dev libjack-dev
+```
+
 2) acquire wheel file from github releases
 
 3) create conda environment and install library.
@@ -11,9 +17,8 @@
     wheel path on different environments
 
 ``` bash
-conda create -n midigen-env python=2.7
+conda create -n midigen-env python=3.6 tensorflow
 source activate midigen-env
-pip install https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.4.0-py2-none-any.whl
 pip install /path/to/wheel.whl
 ```
 
