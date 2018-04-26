@@ -13,6 +13,7 @@ import tensorflow as tf
 from tensorflow.python.saved_model import loader as tf_loader
 import numpy as np
 import pretty_midi
+import pymvnc as mvnc
 from midigen.encode import MelodyEncoder
 from midigen.package import logger, version
 
@@ -24,25 +25,43 @@ def main():
     parser.add_argument('model_dir', help='exported model directory')
     parser.add_argument('--port', default=5000, help='http server port', type=int)
     parser.add_argument('--verbose_response', action='store_true')
+    parser.add_argument('--mvncs', action='store_true', help='use MvNCS for model backend')
     args = parser.parse_args()
 
     logger.debug('launching midigen server version: ' + version)
+
     # Fire up the tensorflow session and recombobulate the generation graph
-    logger.debug('Loading tensorflow model.')
-    sess = tf.Session()
-    atexit.register(sess.close)
-    tf_loader.load(sess, [], args.model_dir)
-    logger.debug('Finished loading tensorflow model.')
+    if not args.mvncs:
+        logger.debug('Loading tensorflow model.')
+        sess = tf.Session()
+        atexit.register(sess.close)
+        tf_loader.load(sess, [], args.model_dir)
+        logger.debug('Finished loading tensorflow model.')
+    else:
+        logger.debug('Connecting to MvNCS.')
+        devs = mvnc.EnumerateDevices()
+        if len(devs) == 0:
+            logger.debug('Not MvNCS found!')
+            return
+        # TODO: actually pick a device from commandline or something
+        dev = mvnc.Device(devs[0])
+        dev.OpenDevice()
+        logger.debug('Connected to MvNCS; allocating graph file')
+        with open(join(args.model_dir, 'midigen.graph'), mode='rb') as f:
+            graph_blob = f.read()
+            graph = dev.AllocateGraph(graph_blob)
+        logger.debug('Finished loading graph on MvNCS.')
 
     logger.debug('loading encoder')
     with open(join(args.model_dir, 'encoder.json'), mode='r') as f:
         encoder = MelodyEncoder.from_json(f.read())
 
     # TODO: use builder signatures here?
-    outputs = []
-    for i in range(encoder.num_time_steps):
-        outputs.append(sess.graph.get_tensor_by_name('decoder/out'+str(i)+':0'))
-    call_ohcs = sess.graph.get_tensor_by_name('call_ohcs:0')
+    if not args.mvncs:
+        outputs = []
+        for i in range(encoder.num_time_steps):
+            outputs.append(sess.graph.get_tensor_by_name('decoder/out'+str(i)+':0'))
+        call_ohcs = sess.graph.get_tensor_by_name('call_ohcs:0')
 
     app = Flask(__name__)
     api = Api(app)
@@ -72,8 +91,14 @@ def main():
             except IndexError as err:
                 return error_response(err)
 
-            outputs_cur = sess.run(outputs, feed_dict={call_ohcs: call_encoded})
-            outputs_cat = np.array(outputs_cur, dtype=np.float32)
+            if not args.mvncs:
+                outputs_cur = sess.run(outputs, feed_dict={call_ohcs: call_encoded})
+                outputs_cat = np.array(outputs_cur, dtype=np.float32)
+            else:
+                graph.LoadTensor(call_encoded.as_type(np.float16), '')
+                outputs_cur, _ = graph.GetResult()
+                outputs_cat = np.array(outputs_cur, dtype=np.float32)
+
             output_symbols = np.argmax(outputs_cat, axis=2).reshape(encoder.num_time_steps)
             response_midi = encoder.decode(output_symbols)
 
