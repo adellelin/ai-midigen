@@ -24,13 +24,13 @@ data_files.extend(zip(model_files.keys(), model_files.values()))
 setup(
     name='midigen',
     version=version,
-    url='https://github.intel.com/ai-music/midigen',
+    url='https://github.com/adellelin/ai-midigen',
     classifiers=[
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.6',
     ],
     packages=find_packages(),
     install_requires=[
-        'pretty_midi', 'flask', 'flask-restful', 'tensorflow>=1.3',
+        'pretty_midi', 'flask', 'flask-restful', 'tensorflow==1.5',
         'numpy', 'mido', 'requests', 'appdirs', 'python-rtmidi', 'pykka', 'scipy'],
 
     data_files=data_files,

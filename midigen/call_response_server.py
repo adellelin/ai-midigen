@@ -1,9 +1,7 @@
 import atexit
 import argparse
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import BytesIO
+import base64
 import logging
 import sys
 import traceback
@@ -25,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description='Launch generation server.')
     parser.add_argument('model_dir', help='exported model directory')
     parser.add_argument('--port', default=5000, help='http server port', type=int)
+    parser.add_argument('--verbose_response', action='store_true')
     args = parser.parse_args()
 
     logger.debug('launching midigen server version: ' + version)
@@ -78,14 +77,26 @@ def main():
             output_symbols = np.argmax(outputs_cat, axis=2).reshape(encoder.num_time_steps)
             response_midi = encoder.decode(output_symbols)
 
-            sio = StringIO.StringIO()
+            sio = BytesIO()
             response_midi.write(sio)
             a = sio.getvalue()
-            a_hex = ":".join(format(ord(c), '02x') for c in a)
-            logger.debug('generated midi binary: ' + a_hex)
-            r = make_response(a)
-            r.headers['content-type'] = 'application/octet-stream'
-            return r
+            a_b64 = base64.b64encode(a).decode()
+            logger.debug('generated midi binary: ' + a_b64)
+            if args.verbose_response:
+                output_prob = outputs_cat[:, 0, :]
+                scale = 100.0
+                output_prob_norm = np.exp(output_prob/scale)/np.sum(np.exp(output_prob/scale), axis=1)[:, np.newaxis]
+
+                r_dict = {'midi': a_b64,
+                          'output_distribution': output_prob_norm.tolist()}
+                j = json.dumps(r_dict, ensure_ascii=False).encode('utf8')
+                response = make_response(j)
+                response.headers['content-type'] = 'application/json; charset=utf-8'
+                return response
+            else:
+                r = make_response(a)
+                r.headers['content-type'] = 'application/octet-stream'
+                return r
 
     api.add_resource(TFGen, '/tfgen')
 

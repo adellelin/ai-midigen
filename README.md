@@ -2,9 +2,9 @@
 
 ## fresh installation
 
-1) install anaconda 2 from https://www.anaconda.com/download/
+1) install miniconda 3
 
-1b) if installing on Ubuntu you need ALSA and JACK libraries installed:
+if installing on Ubuntu you need ALSA and JACK libraries installed:
 
 ```
 sudo apt-get install libasound2-dev libjack-dev
@@ -12,12 +12,10 @@ sudo apt-get install libasound2-dev libjack-dev
 
 2) acquire wheel file from github releases
 
-3) create conda environment and install library.
-    This command assumes you are on macos - replace the tensorflow
-    wheel path on different environments
+3) create conda environment and install library
 
 ``` bash
-conda create -n midigen-env python=3.6 tensorflow
+conda create -n midigen-env python=3.6 tensorflow==1.5
 source activate midigen-env
 pip install /path/to/wheel.whl
 ```
@@ -45,17 +43,18 @@ crserver /path/to/model
 ```
 
 When installing from a released wheel file, some default models should be
-installed at
+installed into the environment. Depending on how the environment is configured, the
+path to the models should looks something like:
 
 ```
-~/anaconda/envs/midigen-env/midigen/models
+~/miniconda3/envs/midigen-env/midigen/models
 ```
 
 To run a crserver with a default model use one of those paths, e.g.
 
 ``` bash
 source activate midigen-env
-crserver ~/anaconda/envs/midigen-env/midigen/models/guitar
+crserver ~/miniconda3/envs/midigen-env/midigen/models/guitar
 ```
 
 Interact directly with the crserver by POSTing the contents of a midi file,
@@ -76,13 +75,13 @@ interface http://127.0.0.1:5000/tfgen
 
 Open the max panel which should be installed to
 ```
-.../anaconda/envs/midigen-env/midigen/max/midigen.maxpat
+.../miniconda3/envs/midigen-env/midigen/max/midigen.maxpat
 ```
 You may need to select your input source on the panel
 
 Open the ableton project which should be installed to:
 ```
-.../anaconda/envs/midigen-env/midigen/ableton/midigen.als
+.../miniconda3/envs/midigen-env/midigen/ableton/midigen.als
 ```
 
 ### Release process
@@ -102,7 +101,7 @@ python setup.py bdist_wheel
 The wheel file should be output to:
 
 ```
-/path/to/midigen/dist/midigen-VERSION-py2-none-any.whl
+/path/to/midigen/dist/midigen-VERSION-py3-none-any.whl
 ```
 
 To install the wheel on a target system see

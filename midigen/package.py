@@ -1,5 +1,5 @@
 import logging
 
-version = '0.0.25'
+version = '0.1.0'
 
 logger = logging.getLogger('midigen')
