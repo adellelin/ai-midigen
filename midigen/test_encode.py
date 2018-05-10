@@ -24,7 +24,8 @@ class TestEncoder(TestCase):
             self.allowed_pitches,
             sample_frequency=25,
             press_threshold=0.5,
-            hold_threshold=0.5)
+            hold_threshold=0.5,
+            max_len=10)
 
         for midi in self.test_midis:
             encoding = encoder.encode(midi, 0)

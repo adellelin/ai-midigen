@@ -150,6 +150,7 @@ class PolyEncoder(Encoder):
 
 class MelodyEncoder(object):
     def __init__(self, allowed_pitches, time_resolution, num_bars, bar_time):
+
         # set properties
         self.allowed_pitches = allowed_pitches
         self.time_resolution = time_resolution
@@ -164,7 +165,7 @@ class MelodyEncoder(object):
         # evaluate dependent properties
         self.total_time = num_bars * bar_time
         self.encoder_lut = {k: v + 2 for v, k in enumerate(allowed_pitches)}
-        self.decoder_lut = {v: k for k, v in self.encoder_lut.iteritems()}
+        self.decoder_lut = {v: k for k, v in self.encoder_lut.items()}
         self.num_pitches = len(self.allowed_pitches)
         self.num_symbols = self.num_pitches + 2
         self.num_time_steps = self.time_resolution * self.total_time
@@ -317,6 +318,8 @@ class MelodyEncoder(object):
                         start=start_time, end=stop_time))
         midi.instruments.append(inst)
         return midi
+
+
 
 
 def concat(midis, min_len=None):
