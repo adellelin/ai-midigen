@@ -1,6 +1,7 @@
 import os
 from os import path
 from unittest import TestCase
+import unittest
 import pretty_midi as pm
 from midigen.encode import PolyEncoder
 
@@ -24,7 +25,8 @@ class TestEncoder(TestCase):
             self.allowed_pitches,
             sample_frequency=25,
             press_threshold=0.5,
-            hold_threshold=0.5)
+            hold_threshold=0.5,
+            max_len=2)
 
         for midi in self.test_midis:
             encoding = encoder.encode(midi, 0)
@@ -36,9 +38,14 @@ class TestEncoder(TestCase):
             for note_n in range(num_notes):
                 ref_note = midi.instruments[0].notes[note_n]
                 dec_note = decoded.instruments[0].notes[note_n]
+                print("noteset", ref_note, dec_note)
                 # make sure all notes have the same velocity
                 assert ref_note.velocity == dec_note.velocity
                 # make sure all notes start within 1 sample of reference
                 assert abs(ref_note.start-dec_note.start) <= 1.0/encoder.sample_frequency
                 # make sure all notes end within 2 samples of reference
                 assert abs(ref_note.end-dec_note.end) <= 2.0/encoder.sample_frequency
+
+
+if __name__ == '__main__':
+    unittest.main()
