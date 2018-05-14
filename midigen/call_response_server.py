@@ -41,11 +41,18 @@ def main():
         logger.debug('Connecting to MvNCS.')
         devs = mvnc.EnumerateDevices()
         if len(devs) == 0:
-            logger.debug('Not MvNCS found!')
+            logger.debug('No MvNCS found!')
             return
-        # TODO: actually pick a device from commandline or something
-        dev = mvnc.Device(devs[0])
-        dev.OpenDevice()
+        # Find first free device (unfortunately no better way to do it with mvncapi)
+        for d in devs:
+            try:
+                dev = mvnc.Device(d)
+                dev.OpenDevice()
+            except:
+                dev = None
+        if dev == None:
+            logger.debug('No free MvNCS found!')
+            return
         logger.debug('Connected to MvNCS; allocating graph file')
         with open(join(args.model_dir, 'midigen.graph'), mode='rb') as f:
             graph_blob = f.read()
