@@ -103,7 +103,7 @@ def main():
                 outputs_cur = sess.run(outputs, feed_dict={call_ohcs: call_encoded})
                 outputs_cat = np.array(outputs_cur, dtype=np.float32)
             else:
-                graph.LoadTensor(call_encoded.as_type(np.float16), '')
+                graph.LoadTensor(call_encoded.astype(np.float16), '')
                 outputs_cur, _ = graph.GetResult()
                 outputs_cat = np.array(outputs_cur, dtype=np.float32)
 
