@@ -48,6 +48,7 @@ def main():
             try:
                 dev = mvnc.Device(d)
                 dev.OpenDevice()
+                break
             except:
                 dev = None
         if dev == None:
