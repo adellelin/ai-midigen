@@ -15,7 +15,6 @@ class CallResponseModel:
         self.hparams = hparams
         self.encoder_dict = hparams['encoder_dict']
         self.hidden_code_size = hparams['hidden_code_size']
-        self.batch_size = hparams['batch_size']
         self.float_type = hparams['float_type']
         if self.float_type == 'float64':
             self.tf_type = tf.float64
@@ -29,16 +28,18 @@ class CallResponseModel:
         self.learning_rate = None
         self.gradient_clip = None
         self.keep_prob = None
+        self.batch_size = None
 
-        optional_params = [
+        self._training_params = [
             'seed',
             'validation_ratio',
             'learning_rate',
             'gradient_clip',
             'keep_prob',
+            'batch_size'
         ]
 
-        for key in optional_params:
+        for key in self._training_params:
             try:
                 setattr(self, key, hparams[key])
             except KeyError:
@@ -150,6 +151,10 @@ class CallResponseModel:
         return dec_cat
 
     def train(self, dataset, output_path):
+        for param in self._training_params:
+            if getattr(self, param) is None:
+                raise ValueError(f'Key "{param}" not set in constructor, but is required to train the model.')
+
         num_training_examples = dataset['training_indices'].size
         num_batches, remainder = divmod(num_training_examples, self.batch_size)
         if remainder != 0:
@@ -199,7 +204,7 @@ class CallResponseModel:
                 epoch = tf.Variable(0, name='epoch', trainable=False, dtype=tf.int64)
                 increment_epoch = tf.assign_add(epoch, 1)
 
-                valid_merged = tf.summary.scalar('validation_cross_entropy', total_cross_entropy)
+                # valid_merged = tf.summary.scalar('validation_cross_entropy', total_cross_entropy)
                 train_merged = tf.summary.scalar('training_cross_entropy', total_cross_entropy)
 
                 hyper_parameter_summary = tf.summary.merge([
@@ -219,6 +224,7 @@ class CallResponseModel:
                     saver.save(sess, join(output_path, 'checkpoint'), write_meta_graph=True, global_step=epoch)
                 else:
                     _LOGGER.info(f'Restoring model from {output_path}')
+
                     saver.restore(sess, checkpoint)
 
                 while True:

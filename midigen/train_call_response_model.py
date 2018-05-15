@@ -25,6 +25,11 @@ def main():
         '--gradient_clip', help='gradient clip', type=float, required=True)
     parser.add_argument(
         '--learning_rate', help='learning rate', type=float, required=True)
+    parser.add_argument(
+        '--keep_prob', help='dropout keep probability', type=float, required=True)
+    parser.add_argument(
+        '--seed', help='RNG seed', type=int, required=True)
+
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG)
@@ -38,7 +43,9 @@ def main():
         'float_type': args.float_type,
         'validation_ratio': args.validation_ratio,
         'gradient_clip': args.gradient_clip,
-        'learning_rate': args.learning_rate
+        'learning_rate': args.learning_rate,
+        'keep_prob': args.keep_prob,
+        'seed': args.seed
     }
 
     model = CallResponseModel(params)
