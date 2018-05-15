@@ -38,6 +38,7 @@ setup(
     entry_points={
         'console_scripts': [
             'crserver=midigen.call_response_server:main',
-            'interface=midigen.rt_midi_interface:main'],
+            'interface=midigen.rt_midi_interface:main',
+            'train_crmodel=midigen.train_call_response_model:main']
     },
 )

@@ -13,7 +13,7 @@ import tensorflow as tf
 from tensorflow.python.saved_model import loader as tf_loader
 import numpy as np
 import pretty_midi
-from midigen.encode import MelodyEncoder
+from midigen.encode import encoder_from_dict
 from midigen.package import logger, version
 
 
@@ -36,9 +36,8 @@ def main():
 
     logger.debug('loading encoder')
     with open(join(args.model_dir, 'encoder.json'), mode='r') as f:
-        encoder = MelodyEncoder.from_json(f.read())
+        encoder = encoder_from_dict(json.load(f))
 
-    # TODO: use builder signatures here?
     outputs = []
     for i in range(encoder.num_time_steps):
         outputs.append(sess.graph.get_tensor_by_name('decoder/out'+str(i)+':0'))
@@ -57,10 +56,10 @@ def main():
                 e_dict = {'error_type': str(e_type),
                           'error_value': str(e_value),
                           'error_traceback': ''.join(e_traceback)}
-                j = json.dumps(e_dict, ensure_ascii=False).encode('utf8')
-                response = make_response(j)
-                response.headers['content-type'] = 'application/json; charset=utf-8'
-                return response
+                error_json = json.dumps(e_dict, ensure_ascii=False).encode('utf8')
+                error_response_value = make_response(error_json)
+                error_response_value.headers['content-type'] = 'application/json; charset=utf-8'
+                return error_response_value
 
             try:
                 call_midi = pretty_midi.PrettyMIDI(request.stream)
@@ -68,14 +67,13 @@ def main():
                 return error_response(err)
 
             try:
-                call_encoded = encoder.encode_ohc(call_midi).reshape((1, encoder.num_time_steps, encoder.num_symbols))
+                call_encoded = encoder.encode(call_midi).reshape((1, encoder.num_time_steps, encoder.num_symbols))
             except IndexError as err:
                 return error_response(err)
 
             outputs_cur = sess.run(outputs, feed_dict={call_ohcs: call_encoded})
             outputs_cat = np.array(outputs_cur, dtype=np.float32)
-            output_symbols = np.argmax(outputs_cat, axis=2).reshape(encoder.num_time_steps)
-            response_midi = encoder.decode(output_symbols)
+            response_midi = encoder.decode(outputs_cat)
 
             sio = BytesIO()
             response_midi.write(sio)
