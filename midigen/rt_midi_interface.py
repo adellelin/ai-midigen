@@ -11,11 +11,19 @@ from errno import EEXIST, ENOTDIR
 import atexit
 import requests
 import mido
-from mido.midifiles import midifiles
 import pretty_midi as pm
 from appdirs import AppDirs
 import pykka
 from midigen.package import version
+
+import json
+import base64
+import numpy as np
+import sys
+
+from pythonosc import osc_message_builder
+from pythonosc import osc_bundle_builder
+from pythonosc import udp_client
 
 # define constants
 _bars_per_call = 2
@@ -41,63 +49,99 @@ class GenPlayActor():
         #self._is_last_bar = is_last_bar
 
     # def on_receive(self, message):
-    def tell(self, message):
+    def tell(self, message, osc_client):
+        # generate a post to send to call response server
         if message['command'] == 'generate':
             gen_start = time.time()
             midi = message['midi']
             inport = message['inport']
             responses_dir = message['responses_dir']
+            client = osc_client
             if self._log_midi_files:
                 call_path = path.join(self._logdir, 'call'+str(self._midi_file_log_index)+'.mid')
                 midi.write(call_path)
 
+            # write call as binary
             call_io = BytesIO()
             midi.write(call_io)
             a = call_io.getvalue()
-            r = requests.post(
-                url=self._crserver_url,
-                data=a,
-                headers={'Content-Type': 'application/octet-stream'})
+
+            # post request to server
+            try:
+                r = requests.post(
+                    url=self._crserver_url,
+                    data=a,
+                    headers={'Content-Type': 'application/octet-stream'})
+
+                # set the return type options
+                return_type=['application/json; charset=utf-8','application/octet-stream']
+
+            except requests.ConnectionError:
+                logging.error("cr server not found")
+                sys.exit(-1)
 
             try:
-                assert r.headers['content-type'] == 'application/octet-stream'
+                assert r.headers['content-type'] in return_type
+
+                # parse the content with probability distribution
+                if r.headers['content-type'] == 'application/json; charset=utf-8':
+                    print("probability and midi", r.headers['content-type'])
+
+                    response_dict = json.loads(r.content, encoding='utf-8')
+                    response_midi_bytes = base64.b64decode(response_dict['midi'])
+                    response_io = BytesIO(response_midi_bytes)
+                    response_io.seek(0)
+                    response_out_dist = response_dict['output_distribution']
+
+                    try:
+                        self.write_output_midi(response_io, responses_dir)
+                        response_out_np_dist = np.array(response_out_dist, dtype=float)
+                        # set up osc bundle
+                        bundle = osc_bundle_builder.OscBundleBuilder(
+                            osc_bundle_builder.IMMEDIATELY)
+                        test_array = []
+                        for index in range(len(response_out_np_dist)):
+                            sub_array = []
+                            msg = osc_message_builder.OscMessageBuilder(address="/probdist/" + str(index))
+                            for x in np.nditer(response_out_np_dist[index]):
+                                msg.add_arg(float(x)*2)
+                                sub_array.append(float(x))
+                            bundle.add_content(msg.build())
+                            test_array.append(sub_array)
+                            # print("array", index, sub_array)
+                        bundle = bundle.build()
+                        client.send(bundle)
+                        try:
+                            assert test_array[index] == response_out_dist[index]
+                        except AssertionError:
+                            logging.warning("arrays don't match")
+                    except IOError as e:
+                        logging.warning("error")
+                    else:
+                        self._logger.debug('cr round trip: ' + str(time.time()-gen_start))
+
             except AssertionError as e:
                 self._logger.exception(e)
                 self._logger.error(r.headers['content-type'])
                 self._response_midi = None
+
             else:
-                response_io = BytesIO(r.content)
-                response_io.seek(0)
-                try:
-                    self._response_midi = mido.MidiFile(file=response_io)
-                    self._response_midi.type=0
-                    self._response_midi.ticks_per_beat = self._tempo
-
-                    if self._log_midi_files:
-                        response_path = path.join(self._logdir, 'response' + str(self._midi_file_log_index) + '.mid')
-                        with open(response_path, mode='wb') as f:
-                            response_io.seek(0)
-                            f.write(response_io.getvalue())
-                        #if str(inport) == "<open input 'AI_Bass_In' (RtMidi/MACOSX_CORE)>":
-                        loop_response_path = responses_dir
-                        with open(loop_response_path, mode='wb') as loop:
-                            response_io.seek(0)
-                            loop.write(response_io.getvalue())
-                            print("midi file", loop_response_path)
-                        self._midi_file_log_index = (self._midi_file_log_index + 1) % self._max_midi_files
-
-                except IOError as e:
-                    self._logger.exception(e)
-                else:
-                    self._logger.debug('cr round trip: ' + str(time.time()-gen_start))
+                if r.headers['content-type'] == 'application/octet-stream':
+                    response_io = BytesIO(r.content)
+                    response_io.seek(0)
+                    try:
+                        self.write_output_midi(response_io, responses_dir)
+                        print("output is midi")
+                    except IOError as e:
+                        self._logger.exception(e)
+                    else:
+                        self._logger.debug('cr round trip: ' + str(time.time()-gen_start))
 
         elif message['command'] == 'play':
             is_last_bar = message['is_last_bar']
-            #print("is last bar in play", is_last_bar)
-            ## get number of messages in response
             if self._response_midi is not None:
                 totalMessages = ([len(track) for track in self._response_midi.tracks][1])
-            #print(totalMessages, "total")
+
             try:
                 msgCount = 1
                 if self._response_midi is not None:
@@ -106,6 +150,7 @@ class GenPlayActor():
                         #print("tracks print", self._response_midi.print_tracks())
                         self._outport.send(play_msg)
                         #print("message Count", msgCount, play_msg)
+                        # send last note message for flourish to avatars
                         if is_last_bar == True and msgCount > (totalMessages - 3) and play_msg.velocity > 0:
                             last_note_msg = mido.Message(type='control_change', control=22, value=127)
                             self._outport.send(last_note_msg)
@@ -116,6 +161,25 @@ class GenPlayActor():
                 self._logger.exception(e)
         else:
             self._logger.error('Actor received unknown message: ' + str(message))
+
+    def write_output_midi(self, response_io, responses_dir):
+        self._response_midi = mido.MidiFile(file=response_io)
+        print("response midi", response_io)
+        self._response_midi.type = 0
+        self._response_midi.ticks_per_beat = self._tempo
+
+        if self._log_midi_files:
+            response_path = path.join(self._logdir, 'response' + str(self._midi_file_log_index) + '.mid')
+            with open(response_path, mode='wb') as f:
+                response_io.seek(0)
+                f.write(response_io.getvalue())
+            # if str(inport) == "<open input 'AI_Bass_In' (RtMidi/MACOSX_CORE)>":
+            loop_response_path = responses_dir
+            with open(loop_response_path, mode='wb') as loop:
+                response_io.seek(0)
+                loop.write(response_io.getvalue())
+                print("midi file", loop_response_path)
+            self._midi_file_log_index = (self._midi_file_log_index + 1) % self._max_midi_files
 
 
 def main():
@@ -128,6 +192,16 @@ def main():
                         help='Flag to turn on midi file logging')
     parser.add_argument('--call_padding_time', default=0.0625, type=float)
     parser.add_argument('--tempo', default=226, type=int, help='Changes playback tempo')
+
+
+    # osc setup
+    parser.add_argument("--ip", default="127.0.0.1",
+                        help="The ip of the OSC server")
+    parser.add_argument("--port", type=int, default=5008,
+                        help="The port the OSC server is listening on")
+    args = parser.parse_args()
+    osc_client = udp_client.SimpleUDPClient(args.ip, args.port)
+
     args = parser.parse_args()
 
     # create and clear log directory
@@ -302,14 +376,13 @@ def main():
                 playing_msg = mido.Message(type='control_change', control=17, value=127)
                 out_port.send(playing_msg)
 
+            # do real time playing of saved midi file at the start of the response cycle
             if bar_count >= call_bars and bar_count % _bars_per_call == 0:
                 logger.info('trigger playback at: ' + str(msg_received))
                 # send last bar state true on 2, 6, 14 bars otherwise false
                 is_last_bar = bar_count == bars_per_cycle - 2
-                actor.tell({'command': 'play', 'is_last_bar': is_last_bar})
+                actor.tell({'command': 'play', 'is_last_bar': is_last_bar}, osc_client)
             # if bar count is in the last bar of response phrase
-
-
 
         # my_actor_ref.tell({'command': 'generate'})
         # my_actor_ref.stop()
@@ -350,7 +423,8 @@ def main():
 
                 midi = pm.PrettyMIDI()
                 midi.instruments.append(inst)
-                actor.tell({'command': 'generate', 'midi': midi, 'inport':in_port, 'responses_dir': args.responses_dir})
+                actor.tell({'command': 'generate', 'midi': midi, 'inport':in_port,
+                            'responses_dir': args.responses_dir}, osc_client)
 
         else:
             logger.error('Unknown message type: ' + str(msg))
