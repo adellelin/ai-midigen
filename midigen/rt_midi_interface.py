@@ -76,6 +76,9 @@ class GenPlayActor():
                 # set the return type options
                 return_type=['application/json; charset=utf-8','application/octet-stream']
 
+                # clear visuals
+                client.send_message("/response_reset/", 1)
+
             except requests.ConnectionError:
                 logging.error("cr server not found")
                 sys.exit(-1)
@@ -92,6 +95,11 @@ class GenPlayActor():
                     response_io = BytesIO(response_midi_bytes)
                     response_io.seek(0)
                     response_out_dist = response_dict['output_distribution']
+                    response_out_np_dist = np.array(response_out_dist)
+                    out_symbols = np.argmax(response_out_np_dist, axis=1)
+                    out_symbols = out_symbols.tolist()
+                    client.send_message("/output_symbols/", out_symbols)
+                    client.send_message("/animation/seq", 1)  # trigger rnn animation
 
                     try:
                         self.write_output_midi(response_io, responses_dir)
