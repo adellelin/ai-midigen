@@ -13,10 +13,14 @@ import tensorflow as tf
 from tensorflow.python.saved_model import loader as tf_loader
 import numpy as np
 import pretty_midi
-import pymvnc as mvnc
 from midigen.encode import MelodyEncoder
 from midigen.package import logger, version
 
+try:
+    import pymvnc as mvnc
+    mvnc_available = True
+except ImportError:
+    mvnc_available = False
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
@@ -29,6 +33,10 @@ def main():
     args = parser.parse_args()
 
     logger.debug('launching midigen server version: ' + version)
+
+    if not mvnc_available and args.mvncs:
+        logger.error('Install pymvnc to use MvNCS as backend')
+        return
 
     # Fire up the tensorflow session and recombobulate the generation graph
     if not args.mvncs:
