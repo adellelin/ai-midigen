@@ -31,7 +31,6 @@ midi.write(call_io)
 a = call_io.getvalue()
 
 
-
 class PostToServer:
     def __init__(self):
         print("self")
@@ -61,6 +60,7 @@ class PostToServer:
                 headers={'Content-Type': 'application/octet-stream'})
 
             return_type=['application/json; charset=utf-8','application/octet-stream']
+
         except requests.ConnectionError:
             logging.error("cr server not found")
             sys.exit(-1)
@@ -78,9 +78,16 @@ class PostToServer:
 
                 response_dict = json.loads(r.content, encoding='utf-8')
                 response_midi_bytes = base64.b64decode(response_dict['midi'])
-                response_out_dist = response_dict['output_distribution']
-
                 response_io = BytesIO(response_midi_bytes)
+                response_out_dist = response_dict['output_distribution']
+                response_out_np_dist = np.array(response_out_dist)
+                print("output shape", response_out_np_dist.shape)
+                out_symbols = np.argmax(response_out_np_dist, axis=1)
+                print("note symbols", out_symbols.shape, out_symbols)
+                out_symbols = out_symbols.tolist()
+                client.send_message("/output_symbols/", out_symbols)
+                client.send_message("/animation/seq", 1)  # trigger rnn animation
+
                 try:
                     self.write_output_midi(response_io)
                     response_out_np_dist = np.array(response_out_dist, dtype=float)
