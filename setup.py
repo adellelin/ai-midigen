@@ -15,7 +15,7 @@ for root, dirnames, filenames in os.walk('models'):
                 model_files[dest].append(os.path.join(root, filename))
 data_files = [
     ('midigen/Responses', ['Responses/Bass_response.mid', 'Responses/Guitar_response.mid']),
-    ('midigen/max', ['max/midigen.maxpat', 'max/background_max.png', 'max/ella_max.png', 'max/line_max.png', 'max/line_v_max.png', 'max/miles_Max.png', 'max/movidius_max.png', 'max/disklavier_max.png']),
+    ('midigen/max', ['max/midigen.maxpat', 'max/AI_Visualizer.maxpat', 'max/background_max.png', 'max/ella_max.png', 'max/line_max.png', 'max/line_v_max.png', 'max/miles_Max.png', 'max/movidius_max.png', 'max/disklavier_max.png']),
     ('midigen/ableton', ['ableton/midigen.als', 'ableton/SyncCallAndResponse.amxd', 'ableton/AI_Bassist_Touch_New_Flourish.amxd',
         'ableton/AI_Guitar_Touch_New_Flourish.amxd', 'ableton/Song_Sync_Touch.amxd', 'ableton/NM-Humanizer-monophonic.amxd', 'ableton/Kev_Touch_New.amxd', 'ableton/Transport.amxd']),
     ('midigen/ableton/Ableton Project Info', ['ableton/Ableton Project Info/Project8_1.cfg'])]
@@ -31,7 +31,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         'pretty_midi', 'flask', 'flask-restful', 'tensorflow==1.5',
-        'numpy', 'mido', 'requests', 'appdirs', 'python-rtmidi', 'pykka', 'scipy'],
+        'numpy', 'mido', 'requests', 'appdirs', 'python-rtmidi', 'pykka', 'scipy',
+        'json', 'base64', 'math', 'pythonosc'],
 
     data_files=data_files,
 
