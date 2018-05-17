@@ -372,8 +372,9 @@ def main():
                 note_encoded = note_encoded[:num_time_steps]
                 #num_time_steps = int(note_len/time_step)+1
 
-                # avoid oversized reshape
-                num_time_steps = num_time_steps % 32
+
+                if (num_time_steps > 32):
+                    num_time_steps = 32
 
                 try:
                     note_encoded.reshape((1, num_time_steps, encoder.num_symbols))
