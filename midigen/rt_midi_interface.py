@@ -213,7 +213,8 @@ def main():
                         help="The ip of the OSC server")
     parser.add_argument("--port", type=int, default=5008,
                         help="The port the OSC server is listening on")
-    parser.add_argument("--json", default = "/Users/adelleli/Documents/encoder.json")
+    parser.add_argument("--json", default="/Users/adelleli/Documents/encoder.json", help = "location of json")
+
     args = parser.parse_args()
     osc_client = udp_client.SimpleUDPClient(args.ip, args.port)
 

@@ -32,7 +32,7 @@ setup(
     install_requires=[
         'pretty_midi', 'flask', 'flask-restful', 'tensorflow==1.5',
         'numpy', 'mido', 'requests', 'appdirs', 'python-rtmidi', 'pykka', 'scipy',
-        'json', 'base64', 'math', 'pythonosc'],
+        'python-osc'],
 
     data_files=data_files,
 
