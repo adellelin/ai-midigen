@@ -213,6 +213,7 @@ def main():
                         help="The ip of the OSC server")
     parser.add_argument("--port", type=int, default=5008,
                         help="The port the OSC server is listening on")
+    parser.add_argument("--json", default="/Users/adelleli/Documents/encoder.json", help = "location of json")
     args = parser.parse_args()
     osc_client = udp_client.SimpleUDPClient(args.ip, args.port)
 
@@ -226,7 +227,7 @@ def main():
     play_start_time = 0
 
     # set up encoder
-    with open(join("/Users/adelleli/Documents/Git/midigen/models/guitar_5/", 'encoder.json'), mode='r') as f:
+    with open(join(args.json), mode='r') as f:
         encoder = MelodyEncoder.from_json(f.read())
 
     # create and clear log directory
