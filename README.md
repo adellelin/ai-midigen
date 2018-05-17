@@ -16,6 +16,7 @@ sudo apt-get install libasound2-dev libjack-dev
 
 ``` bash
 conda create -n midigen-env python=3.6 tensorflow==1.5
+    or pip3 install --upgrade https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.5.1-py3-none-any.whl
 source activate midigen-env
 pip install /path/to/wheel.whl
 ```
