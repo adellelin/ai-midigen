@@ -11,24 +11,25 @@ from errno import EEXIST, ENOTDIR
 import atexit
 import requests
 import mido
+from mido.midifiles import midifiles
 import pretty_midi as pm
 from appdirs import AppDirs
 import pykka
 from midigen.package import version
 
+# for visualizer
 import json
 import base64
 import numpy as np
 import sys
 import math
+from os.path import join
+from midigen.encode import MelodyEncoder
+
 
 from pythonosc import osc_message_builder
 from pythonosc import osc_bundle_builder
 from pythonosc import udp_client
-
-from midigen.encode import MelodyEncoder
-from os.path import join
-
 
 # define constants
 _bars_per_call = 2
@@ -55,18 +56,18 @@ class GenPlayActor():
 
     # def on_receive(self, message):
     def tell(self, message, osc_client):
-        # generate a post to send to call response server
         if message['command'] == 'generate':
             gen_start = time.time()
             midi = message['midi']
             inport = message['inport']
             responses_dir = message['responses_dir']
+            is_visualizing = message['is_visualizing']
             client = osc_client
             if self._log_midi_files:
                 call_path = path.join(self._logdir, 'call'+str(self._midi_file_log_index)+'.mid')
                 midi.write(call_path)
 
-            # write call as binary
+            # write call input as binary
             call_io = BytesIO()
             midi.write(call_io)
             a = call_io.getvalue()
@@ -103,36 +104,36 @@ class GenPlayActor():
                     out_symbols = np.argmax(response_out_np_dist, axis=1)
                     out_symbols = out_symbols.tolist()
                     client.send_message("/output_symbols/", out_symbols)
-                    print("output distribution", response_out_np_dist)
-                    print("output symbols", out_symbols)
 
+                    if is_visualizing is True:
+                        print("output distribution", response_out_np_dist)
+                        print("output symbols", out_symbols)
 
-                    try:
-                        self.write_output_midi(response_io, responses_dir)
-                        response_out_np_dist = np.array(response_out_dist, dtype=float)
-                        # set up osc bundle
-                        bundle = osc_bundle_builder.OscBundleBuilder(
-                            osc_bundle_builder.IMMEDIATELY)
-                        test_array = []
-                        for index in range(len(response_out_np_dist)):
-                            sub_array = []
-                            msg = osc_message_builder.OscMessageBuilder(address="/probdist/" + str(index))
-                            for x in np.nditer(response_out_np_dist[index]):
-                                msg.add_arg(float(x)*3)
-                                sub_array.append(float(x))
-                            bundle.add_content(msg.build())
-                            test_array.append(sub_array)
-                            # print("array", index, sub_array)
-                        bundle = bundle.build()
-                        client.send(bundle)
                         try:
-                            assert test_array[index] == response_out_dist[index]
-                        except AssertionError:
-                            logging.warning("arrays don't match")
-                    except IOError as e:
-                        logging.warning("error")
-                    else:
-                        self._logger.debug('cr round trip: ' + str(time.time()-gen_start))
+                            self.write_output_midi(response_io, responses_dir)
+                            response_out_np_dist = np.array(response_out_dist, dtype=float)
+                            # set up osc bundle
+                            bundle = osc_bundle_builder.OscBundleBuilder(
+                                osc_bundle_builder.IMMEDIATELY)
+                            test_array = []
+                            for index in range(len(response_out_np_dist)):
+                                sub_array = []
+                                msg = osc_message_builder.OscMessageBuilder(address="/probdist/" + str(index))
+                                for x in np.nditer(response_out_np_dist[index]):
+                                    msg.add_arg(float(x)*3)
+                                    sub_array.append(float(x))
+                                bundle.add_content(msg.build())
+                                test_array.append(sub_array)
+                            bundle = bundle.build()
+                            client.send(bundle)
+                            try:
+                                assert test_array[index] == response_out_dist[index]
+                            except AssertionError:
+                                logging.warning("arrays don't match")
+                        except IOError as e:
+                            logging.warning("error")
+                        else:
+                            self._logger.debug('cr round trip: ' + str(time.time()-gen_start))
 
             except AssertionError as e:
                 self._logger.exception(e)
@@ -140,6 +141,7 @@ class GenPlayActor():
                 self._response_midi = None
 
             else:
+                # if in non-verbose, content is only midi file
                 if r.headers['content-type'] == 'application/octet-stream':
                     response_io = BytesIO(r.content)
                     response_io.seek(0)
@@ -153,9 +155,11 @@ class GenPlayActor():
 
         elif message['command'] == 'play':
             is_last_bar = message['is_last_bar']
+            #print("is last bar in play", is_last_bar)
+            ## get number of messages in response
             if self._response_midi is not None:
                 totalMessages = ([len(track) for track in self._response_midi.tracks][1])
-
+            #print(totalMessages, "total")
             try:
                 msgCount = 1
                 if self._response_midi is not None:
@@ -164,7 +168,6 @@ class GenPlayActor():
                         #print("tracks print", self._response_midi.print_tracks())
                         self._outport.send(play_msg)
                         #print("message Count", msgCount, play_msg)
-                        # send last note message for flourish to avatars
                         if is_last_bar == True and msgCount > (totalMessages - 3) and play_msg.velocity > 0:
                             last_note_msg = mido.Message(type='control_change', control=22, value=127)
                             self._outport.send(last_note_msg)
@@ -207,7 +210,6 @@ def main():
     parser.add_argument('--call_padding_time', default=0.0625, type=float)
     parser.add_argument('--tempo', default=226, type=int, help='Changes playback tempo')
 
-
     # osc setup
     parser.add_argument("--ip", default="127.0.0.1",
                         help="The ip of the OSC server")
@@ -216,9 +218,8 @@ def main():
     parser.add_argument("--json", default="/Users/adelleli/Documents/encoder.json", help = "location of json")
 
     args = parser.parse_args()
-    osc_client = udp_client.SimpleUDPClient(args.ip, args.port)
 
-    args = parser.parse_args()
+    osc_client = udp_client.SimpleUDPClient(args.ip, args.port)
 
     # dynamic encoder variables
     end_note_time = 0
@@ -226,6 +227,7 @@ def main():
     call_step_count = 0
     playtimestarts = False
     play_start_time = 0
+    is_visualizing = False
 
     # set up encoder
     with open(join(args.json), mode='r') as f:
@@ -304,6 +306,7 @@ def main():
 
     # enter control loop: reading messages from the input port
     for msg in in_port:
+
         msg_received = time.time()
         logger.debug('received message:\n    ' + str(msg) + '\n    at ' + str(msg_received))
 
@@ -320,14 +323,13 @@ def main():
             pitch = msg.note
             channel = msg.channel
             velocity = msg.velocity
-
             note_state = on_notes.pop((channel, pitch), None)
             if note_state is None and velocity != 0:
                 # key pressed - add state to on_notes dict
                 on_notes[(channel, pitch)] = (velocity, msg_received)
 
                 # send rest note info
-                if end_note_time != 0:
+                if is_visualizing is True and end_note_time != 0:
                     rest_note_len = msg_received- end_note_time
                     num_rest_steps = math.floor(rest_note_len/time_step)
                     print("rest note", num_rest_steps)
@@ -349,72 +351,86 @@ def main():
                 logger.info('added note to buffer: \n    ' + str(cur_note))
 
                 # DYNAMIC ENCODING
-                # TODO: Make optional
+                if is_visualizing is True:
 
-                # turn note into midi
-                inst = pm.Instrument(program=0)
-                note_len = cur_note.end_time - cur_note.start_time
+                    # turn note into midi
+                    inst = pm.Instrument(program=0)
+                    note_len = cur_note.end_time - cur_note.start_time
 
-                pmnote = pm.Note(
-                    velocity=cur_note.velocity,
-                    pitch=cur_note.pitch,
-                    start=0,
-                    end=note_len)
+                    pmnote = pm.Note(
+                        velocity=cur_note.velocity,
+                        pitch=cur_note.pitch,
+                        start=0,
+                        end=note_len)
 
-                inst.notes.append(pmnote)
-                midi = pm.PrettyMIDI()
-                midi.instruments.append(inst)
-                num_time_steps = int(math.ceil(note_len / time_step))
-                #print("step", note_len, num_time_steps)
+                    inst.notes.append(pmnote)
+                    midi = pm.PrettyMIDI()
+                    midi.instruments.append(inst)
+                    num_time_steps = int(math.ceil(note_len / time_step))
+                    # print("step", note_len, num_time_steps)
 
-                # send to encoder
-                note_encoded = encoder.encode_ohc(midi)
-                note_encoded = note_encoded[:num_time_steps]
-                #num_time_steps = int(note_len/time_step)+1
+                    # send to encoder
+                    note_encoded = encoder.encode_ohc(midi)
+                    note_encoded = note_encoded[:num_time_steps]
+                    # num_time_steps = int(note_len/time_step)+1
 
+                    if (num_time_steps > 32):
+                        num_time_steps = 32
 
-                if (num_time_steps > 32):
-                    num_time_steps = 32
+                    try:
+                        note_encoded.reshape((1, num_time_steps, encoder.num_symbols))
+                    except ValueError:
+                        # print("ERROR BAD SHAPE ERROR:{0}".format(err))
+                        logger.error("ERROR BAD SHAPE ERROR:{0}".format(err))
+                        sys.exit(-1)
 
-                try:
-                    note_encoded.reshape((1, num_time_steps, encoder.num_symbols))
-                except ValueError:
-                    #print("ERROR BAD SHAPE ERROR:{0}".format(err))
-                    logger.error("ERROR BAD SHAPE ERROR:{0}".format(err))
-                    sys.exit(-1)
+                    note_index = np.argmax(note_encoded, axis=1)
 
-                note_index = np.argmax(note_encoded, axis=1)
+                    # get returned encoding, send to osc
+                    for i in range(len(note_index)):
+                        call_step_count += 1
+                        osc_client.send_message("/call_index/" + str(call_step_count), int(note_index[i]))
+                        print("note encoded", note_encoded.shape, note_encoded, note_index[i])
+                        print("/call_index/" + str(call_step_count), note_index[i])
 
-
-                # get returned encoding, send to osc
-                for i in range(len(note_index)):
-                    call_step_count += 1
-                    osc_client.send_message("/call_index/"+str(call_step_count), int(note_index[i]))
-                    print("note encoded", note_encoded.shape, note_encoded, note_index[i])
-                    print("/call_index/"+str(call_step_count), note_index[i])
-
-                # rest note
-                end_note_time = cur_note.end_time
-
+                    # rest note
+                    end_note_time = cur_note.end_time
+                else:
+                    pass
             else:
                 logger.error('Key press state error. Dropped a message?')
 
+        # cc's come in on channel 5
+        elif msg.channel !=5:
+            print("pass on non channel 5 messages")
+            pass
 
-        # metronome message
+        elif msg.type == 'control_change' and msg.control == 19:
+            value = msg.value
+
+            if value not in [0, 30]:
+                logger.error('Unknown control_change message:\n    ' + str(msg))
+                continue
+            else:
+                if value == 30:
+                    is_visualizing = True
+                else:
+                    is_visualizing = False
+
         elif msg.type == 'control_change' and msg.control == 20:
             value = msg.value
 
-            # check for response length message
             if value not in [2, 4, 8, 12]:
-            #if value not in [0, 1, 2]:
                 logger.error('Unknown control_change message:\n    ' + str(msg))
                 continue
             else:
                 response_length_state = value
             most_recent_metronome = msg_received
 
-            # go back to idle state if no new notes
+            # user is changing their input length
+            # TODO: Might be bad. Add another reset button in similar way
             if response_length_state != last_response_length_state and model_idle is False:
+                logger.info('User changed call length to:     ' + str(response_length_state))
                 bar_count = 0
                 model_idle = True
                 last_response_length_state = response_length_state
@@ -443,10 +459,10 @@ def main():
                     # leave idle state and set bar count to the beginning of the cycle
                     bar_count = 0
                     model_idle = False
+                    logger.info('entering ready')
 
             bars_per_cycle = 2 * value
             call_bars = value
-            print ("bars_per_cyle", bars_per_cycle, "call_bars", call_bars)
 
             # increment and report bar count
             bar_count = (bar_count + 1) % bars_per_cycle
@@ -469,35 +485,33 @@ def main():
                 playing_msg = mido.Message(type='control_change', control=17, value=127)
                 out_port.send(playing_msg)
 
-            # do real time playing of saved midi file at the start of the response cycle
-            if bar_count >= call_bars and bar_count % _bars_per_call == 0:
+            if bar_count >= call_bars and bar_count % _bars_per_call == 0:  # every 2 bars
                 logger.info('trigger playback at: ' + str(msg_received))
                 # send last bar state true on 2, 6, 14 bars otherwise false
                 is_last_bar = bar_count == bars_per_cycle - 2
-                # added osc_client to message
                 actor.tell({'command': 'play', 'is_last_bar': is_last_bar}, osc_client)
-                # if bar count is in the last bar of response phrase
+            # if bar count is in the last bar of response phrase
 
                 # FOR VISUALS to log time of responses playing
-                # TODO: make optional
-                if playtimestarts is False:
+                if is_visualizing is True and playtimestarts is False:
                     play_start_time = time.time()
                     playtimestarts = True
+                else:
+                    pass
 
-            # FOR VISUALS - reset to zero at new input
-            # TODO: make optional
+            # FOR VISUALS - reset the step counter to zero at new input
             if time.time() + 4000 > play_start_time and playtimestarts is True:
                 call_step_count = 0
                 print("call_step_count", call_step_count)
                 end_note_time = 0
                 playtimestarts = False
+                # clear response visuals
+                #osc_client.send_message("/response_reset/", 1)
 
         # my_actor_ref.tell({'command': 'generate'})
         # my_actor_ref.stop()
 
-        # generate message to post to CR server
-        elif msg.type == 'control_change' and msg.control == 21  and msg.value == 5:
-
+        elif msg.type == 'control_change' and msg.control == 21 and msg.value == 5:
             trigger_generation = call_bars - 1 <= bar_count < 2*call_bars - 1 and \
                                  bar_count % _bars_per_call == _bars_per_call - 1
             if not trigger_generation:
@@ -506,6 +520,7 @@ def main():
             generation_delta = msg_received - most_recent_metronome
             call_start_time = msg_received - (call_bars - 1) * _seconds_per_bar - generation_delta
             call_end_time = call_start_time + _seconds_per_call
+            call_number = (bar_count - _bars_per_call) // 2 + 1
 
             # convert a sequence of notes _seconds_per_call long, starting at call_start_time
             inst = pm.Instrument(program=0)
@@ -524,21 +539,21 @@ def main():
                     inst.notes.append(pmnote)
 
             if len(inst.notes) == 0:
-                logger.info('entering idle mode')
+                logger.info('entering idle mode'+ str(len(inst.notes)))
                 model_idle = True
                 bar_count = 0
-
             else:
-                logger.info('generation triggered ' + str(_seconds_per_bar - generation_delta) + ' early')
+                logger.info('call number ' + str(call_number) +' generation triggered '
+                            + str(_seconds_per_bar - generation_delta) + ' early')
 
                 midi = pm.PrettyMIDI()
                 midi.instruments.append(inst)
-                # added osc_client to message
                 actor.tell({'command': 'generate', 'midi': midi, 'inport':in_port,
-                            'responses_dir': args.responses_dir}, osc_client)
+                            'responses_dir': args.responses_dir, 'is_visualizing': is_visualizing}, osc_client)
 
         else:
             logger.error('Unknown message type: ' + str(msg))
+
 
 if __name__ == '__main__':
     main()
