@@ -7838,7 +7838,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 196.666748, 306.666748, 50.0, 22.0 ],
 									"style" : "",
-									"text" : "1 0"
+									"text" : "12 0"
 								}
 
 							}
@@ -7864,7 +7864,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 174.0, 154.666748, 53.0, 35.0 ],
 									"style" : "",
-									"text" : "/beat/ 3"
+									"text" : "/beat/ 2"
 								}
 
 							}
@@ -8714,7 +8714,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 59.999985, 179.986572, 107.75, 22.0 ],
 									"style" : "",
-									"text" : "/ai/state/guitar 0"
+									"text" : "/ai/state/guitar 1"
 								}
 
 							}
@@ -9148,7 +9148,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 78.0, 253.66687, 181.0, 22.0 ],
 									"style" : "",
-									"text" : "/avatar/control/state/guitar 1. 0."
+									"text" : "/avatar/control/state/guitar 0. 0."
 								}
 
 							}
@@ -19944,7 +19944,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 203.982559, 1567.796753, 163.171295, 22.0 ],
 					"style" : "",
-					"text" : "/ai/state/guitar 0"
+					"text" : "/ai/state/guitar 1"
 				}
 
 			}
