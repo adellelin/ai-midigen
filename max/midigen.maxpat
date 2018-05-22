@@ -206,8 +206,6 @@
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 1235.199951, 509.705231, 74.0, 22.0 ],
-					"presentation" : 1,
-					"presentation_rect" : [ 660.21582, 560.0, 74.0, 22.0 ],
 					"style" : "",
 					"text" : "1, 127 2000"
 				}
@@ -8714,7 +8712,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 59.999985, 179.986572, 107.75, 22.0 ],
 									"style" : "",
-									"text" : "/ai/state/guitar 1"
+									"text" : "/ai/state/guitar 0"
 								}
 
 							}
@@ -17782,7 +17780,7 @@
 					"bgfillcolor_type" : "gradient",
 					"fontsize" : 11.0,
 					"id" : "obj-241",
-					"items" : [ "IAC Driver IAC Bus 1", ",", "IAC Driver IAC Bus 2", ",", "IAC Driver IAC Bus 3", ",", "IAC Driver IAC Bus 4", ",", "to Max 1", ",", "to Max 2", ",", "Metronome_In", ",", "AI_Guitar_Mutate", ",", "Transport", ",", "AI_Bass_Mutate", ",", "Play_Ableton", ",", "VALID_TRK", ",", "AI_Bass_Out", ",", "AI_Guitar_Out", ",", "AI_Visualizer_Response", ",", "AI_Visualizer_Call", ",", "Steinberg UR22 Port1" ],
+					"items" : [ "IAC Driver IAC Bus 1", ",", "IAC Driver IAC Bus 2", ",", "IAC Driver IAC Bus 3", ",", "IAC Driver IAC Bus 4", ",", "to Max 1", ",", "to Max 2", ",", "Metronome_In", ",", "AI_Guitar_Mutate", ",", "Transport", ",", "AI_Bass_Mutate", ",", "Play_Ableton", ",", "VALID_TRK", ",", "AI_Bass_Out", ",", "AI_Guitar_Out", ",", "AI_Visualizer_Response", ",", "AI_Visualizer_Call" ],
 					"maxclass" : "umenu",
 					"numinlets" : 1,
 					"numoutlets" : 3,
@@ -18586,7 +18584,7 @@
 					"parameter_enable" : 0,
 					"patching_rect" : [ 2739.214355, 296.756958, 269.0, 37.0 ],
 					"style" : "",
-					"text" : "websocket connection available at: http://10.211.55.2:8086"
+					"text" : "websocket connection available at: http://10.250.200.42:8086"
 				}
 
 			}
@@ -19944,7 +19942,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 203.982559, 1567.796753, 163.171295, 22.0 ],
 					"style" : "",
-					"text" : "/ai/state/guitar 1"
+					"text" : "/ai/state/bass 0"
 				}
 
 			}
@@ -24017,8 +24015,8 @@
  ],
 		"parameters" : 		{
 			"obj-619" : [ "live.button[33]", "live.button", 0 ],
-			"obj-626" : [ "live.text[12]", "live.text[11]", 0 ],
 			"obj-62" : [ "number[7]", "number[7]", 0 ],
+			"obj-626" : [ "live.text[12]", "live.text[11]", 0 ],
 			"obj-33" : [ "live.tab", "live.tab", 0 ],
 			"obj-241" : [ "umenu", "umenu", 0 ],
 			"obj-51::obj-520" : [ "number[38]", "number[18]", 0 ],
@@ -24032,55 +24030,55 @@
 			"obj-116::obj-168" : [ "number[34]", "number[12]", 0 ],
 			"obj-624" : [ "live.text[11]", "live.text[11]", 0 ],
 			"obj-622" : [ "live.button[36]", "live.button", 0 ],
-			"obj-450" : [ "slider[4]", "slider[4]", 0 ],
 			"obj-589" : [ "live.button[27]", "live.button", 0 ],
+			"obj-450" : [ "slider[4]", "slider[4]", 0 ],
 			"obj-623" : [ "live.button[37]", "live.button", 0 ],
-			"obj-620" : [ "live.button[34]", "live.button", 0 ],
 			"obj-760" : [ "live.text[15]", "live.text[2]", 0 ],
+			"obj-620" : [ "live.button[34]", "live.button", 0 ],
 			"obj-828::obj-778" : [ "number[28]", "number[28]", 0 ],
 			"obj-35::obj-576" : [ "number[40]", "number[18]", 0 ],
-			"obj-566" : [ "live.button[19]", "live.button", 0 ],
 			"obj-126" : [ "number[15]", "number[15]", 0 ],
-			"obj-64" : [ "number[5]", "number[5]", 0 ],
+			"obj-566" : [ "live.button[19]", "live.button", 0 ],
 			"obj-187" : [ "live.tab[5]", "live.tab[4]", 0 ],
+			"obj-64" : [ "number[5]", "number[5]", 0 ],
 			"obj-99::obj-516" : [ "number[22]", "number[18]", 0 ],
+			"obj-544" : [ "number[24]", "number[24]", 0 ],
 			"obj-567" : [ "live.button[20]", "live.button", 0 ],
 			"obj-20" : [ "number[2]", "number[2]", 0 ],
-			"obj-544" : [ "number[24]", "number[24]", 0 ],
 			"obj-147" : [ "live.tab[4]", "live.tab[4]", 0 ],
-			"obj-556" : [ "live.button[12]", "live.button", 0 ],
 			"obj-569" : [ "live.button[21]", "live.button", 0 ],
+			"obj-556" : [ "live.button[12]", "live.button", 0 ],
 			"obj-542" : [ "number[23]", "number[23]", 0 ],
 			"obj-617" : [ "live.button[31]", "live.button", 0 ],
 			"obj-7" : [ "live.text[16]", "live.text", 0 ],
-			"obj-148" : [ "number[16]", "number[16]", 0 ],
 			"obj-564" : [ "live.button[17]", "live.button", 0 ],
+			"obj-148" : [ "number[16]", "number[16]", 0 ],
 			"obj-675::obj-364" : [ "live.button[39]", "live.button", 0 ],
 			"obj-731::obj-481" : [ "number[19]", "number[19]", 0 ],
 			"obj-521" : [ "slider[6]", "slider[4]", 0 ],
 			"obj-41::obj-493" : [ "number[37]", "number[18]", 0 ],
-			"obj-584" : [ "live.button[22]", "live.button", 0 ],
 			"obj-211" : [ "live.text", "live.text", 0 ],
+			"obj-584" : [ "live.button[22]", "live.button", 0 ],
 			"obj-591" : [ "live.button[29]", "live.button", 0 ],
-			"obj-16" : [ "number[29]", "number[24]", 0 ],
 			"obj-585" : [ "live.button[23]", "live.button", 0 ],
+			"obj-16" : [ "number[29]", "number[24]", 0 ],
 			"obj-112" : [ "live.tab[3]", "live.tab", 0 ],
 			"obj-751::obj-131" : [ "number[8]", "number[8]", 0 ],
 			"obj-485" : [ "kslider", "kslider", 0 ],
 			"obj-608" : [ "live.text[10]", "live.text[2]", 0 ],
-			"obj-586" : [ "live.button[24]", "live.button", 0 ],
 			"obj-17" : [ "number[30]", "number[23]", 0 ],
+			"obj-586" : [ "live.button[24]", "live.button", 0 ],
 			"obj-109::obj-456" : [ "number[36]", "number[18]", 0 ],
+			"obj-2" : [ "live.button[2]", "live.button", 0 ],
 			"obj-565" : [ "live.button[18]", "live.button", 0 ],
 			"obj-606" : [ "live.text[9]", "live.text[2]", 0 ],
-			"obj-2" : [ "live.button[2]", "live.button", 0 ],
 			"obj-9::obj-562" : [ "number[39]", "number[18]", 0 ],
 			"obj-116::obj-166" : [ "number[32]", "number[14]", 0 ],
 			"obj-214" : [ "live.text[1]", "live.text", 0 ],
 			"obj-587" : [ "live.button[25]", "live.button", 0 ],
-			"obj-119" : [ "live.tab[2]", "live.tab[1]", 0 ],
 			"obj-373" : [ "live.tab[6]", "live.tab[6]", 0 ],
 			"obj-262" : [ "live.text[2]", "live.text[2]", 0 ],
+			"obj-119" : [ "live.tab[2]", "live.tab[1]", 0 ],
 			"obj-263" : [ "live.text[3]", "live.text[2]", 0 ],
 			"obj-553" : [ "slider[8]", "slider[4]", 0 ],
 			"obj-63" : [ "number[6]", "number[6]", 0 ],
@@ -24093,11 +24091,11 @@
 			"obj-127" : [ "number[14]", "number[14]", 0 ],
 			"obj-558" : [ "live.button[13]", "live.button", 0 ],
 			"obj-616" : [ "live.button[30]", "live.button", 0 ],
-			"obj-18" : [ "number", "number", 0 ],
 			"obj-128" : [ "number[13]", "number[13]", 0 ],
+			"obj-18" : [ "number", "number", 0 ],
 			"obj-110" : [ "number[25]", "number[25]", 0 ],
-			"obj-129" : [ "number[12]", "number[12]", 0 ],
 			"obj-621" : [ "live.button[35]", "live.button", 0 ],
+			"obj-129" : [ "number[12]", "number[12]", 0 ],
 			"obj-115" : [ "live.tab[1]", "live.tab[1]", 0 ],
 			"obj-731::obj-482" : [ "number[20]", "number[19]", 0 ],
 			"obj-590" : [ "live.button[28]", "live.button", 0 ],
@@ -24107,8 +24105,8 @@
 			"obj-510" : [ "live.text[4]", "live.text[2]", 0 ],
 			"obj-65" : [ "number[4]", "number[4]", 0 ],
 			"obj-645" : [ "live.text[13]", "live.text[11]", 0 ],
-			"obj-773" : [ "live.text[7]", "live.text[2]", 0 ],
 			"obj-618" : [ "live.button[32]", "live.button", 0 ],
+			"obj-773" : [ "live.text[7]", "live.text[2]", 0 ],
 			"obj-531" : [ "slider[7]", "slider[4]", 0 ]
 		}
 ,
