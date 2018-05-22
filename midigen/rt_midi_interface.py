@@ -55,14 +55,15 @@ class GenPlayActor():
         #self._is_last_bar = is_last_bar
 
     # def on_receive(self, message):
-    def tell(self, message, osc_client):
+    def tell(self, message):
         if message['command'] == 'generate':
             gen_start = time.time()
             midi = message['midi']
             inport = message['inport']
             responses_dir = message['responses_dir']
             is_visualizing = message['is_visualizing']
-            client = osc_client
+
+            client = message['osc_client']
             if self._log_midi_files:
                 call_path = path.join(self._logdir, 'call'+str(self._midi_file_log_index)+'.mid')
                 midi.write(call_path)
@@ -94,9 +95,12 @@ class GenPlayActor():
                 # parse the content with probability distribution
                 if r.headers['content-type'] == 'application/json; charset=utf-8':
                     print("probability and midi", r.headers['content-type'])
-
                     response_dict = json.loads(r.content, encoding='utf-8')
-                    response_midi_bytes = base64.b64decode(response_dict['midi'])
+                    try:
+                        response_midi_bytes = base64.b64decode(response_dict['midi'])
+                    except KeyError:
+                        logging.error("key error from crserver invalid response")
+                        return
                     response_io = BytesIO(response_midi_bytes)
                     response_io.seek(0)
                     response_out_dist = response_dict['output_distribution']
@@ -104,13 +108,14 @@ class GenPlayActor():
                     out_symbols = np.argmax(response_out_np_dist, axis=1)
                     out_symbols = out_symbols.tolist()
                     client.send_message("/output_symbols/", out_symbols)
+                    self.write_output_midi(response_io, responses_dir)
 
                     if is_visualizing is True:
-                        print("output distribution", response_out_np_dist)
+                        #print("output distribution", response_out_np_dist)
                         print("output symbols", out_symbols)
+                        #self._logger.info("is visualizing" + str(is_visualizing))
 
                         try:
-                            self.write_output_midi(response_io, responses_dir)
                             response_out_np_dist = np.array(response_out_dist, dtype=float)
                             # set up osc bundle
                             bundle = osc_bundle_builder.OscBundleBuilder(
@@ -134,32 +139,34 @@ class GenPlayActor():
                             logging.warning("error")
                         else:
                             self._logger.debug('cr round trip: ' + str(time.time()-gen_start))
+                    else:
+                        pass
+
+                # if in non-verbose, content is only midi file
+                elif r.headers['content-type'] == 'application/octet-stream':
+                    response_io = BytesIO(r.content)
+                    response_io.seek(0)
+                    try:
+                        self.write_output_midi(response_io, responses_dir)
+                    except IOError as e:
+                        self._logger.exception(e)
+                    else:
+                        self._logger.debug('cr round trip: ' + str(time.time()-gen_start))
 
             except AssertionError as e:
                 self._logger.exception(e)
                 self._logger.error(r.headers['content-type'])
                 self._response_midi = None
 
-            else:
-                # if in non-verbose, content is only midi file
-                if r.headers['content-type'] == 'application/octet-stream':
-                    response_io = BytesIO(r.content)
-                    response_io.seek(0)
-                    try:
-                        self.write_output_midi(response_io, responses_dir)
-                        print("output is midi")
-                    except IOError as e:
-                        self._logger.exception(e)
-                    else:
-                        self._logger.debug('cr round trip: ' + str(time.time()-gen_start))
 
         elif message['command'] == 'play':
+            #print("getting into play", self._response_midi)
             is_last_bar = message['is_last_bar']
             #print("is last bar in play", is_last_bar)
             ## get number of messages in response
             if self._response_midi is not None:
                 totalMessages = ([len(track) for track in self._response_midi.tracks][1])
-            #print(totalMessages, "total")
+                #print(totalMessages, "total")
             try:
                 msgCount = 1
                 if self._response_midi is not None:
@@ -181,7 +188,6 @@ class GenPlayActor():
 
     def write_output_midi(self, response_io, responses_dir):
         self._response_midi = mido.MidiFile(file=response_io)
-        print("response midi", response_io)
         self._response_midi.type = 0
         self._response_midi.ticks_per_beat = self._tempo
 
@@ -379,7 +385,7 @@ def main():
 
                     try:
                         note_encoded.reshape((1, num_time_steps, encoder.num_symbols))
-                    except ValueError:
+                    except ValueError as err:
                         # print("ERROR BAD SHAPE ERROR:{0}".format(err))
                         logger.error("ERROR BAD SHAPE ERROR:{0}".format(err))
                         sys.exit(-1)
@@ -489,7 +495,7 @@ def main():
                 logger.info('trigger playback at: ' + str(msg_received))
                 # send last bar state true on 2, 6, 14 bars otherwise false
                 is_last_bar = bar_count == bars_per_cycle - 2
-                actor.tell({'command': 'play', 'is_last_bar': is_last_bar}, osc_client)
+                actor.tell({'command': 'play', 'is_last_bar': is_last_bar})
             # if bar count is in the last bar of response phrase
 
                 # FOR VISUALS to log time of responses playing
@@ -518,7 +524,7 @@ def main():
                 continue
 
             generation_delta = msg_received - most_recent_metronome
-            call_start_time = msg_received - (call_bars - 1) * _seconds_per_bar - generation_delta
+            call_start_time = msg_received - (call_bars - 1) * _seconds_per_bar - generation_delta  #early post
             call_end_time = call_start_time + _seconds_per_call
             call_number = (bar_count - _bars_per_call) // 2 + 1
 
@@ -549,7 +555,8 @@ def main():
                 midi = pm.PrettyMIDI()
                 midi.instruments.append(inst)
                 actor.tell({'command': 'generate', 'midi': midi, 'inport':in_port,
-                            'responses_dir': args.responses_dir, 'is_visualizing': is_visualizing}, osc_client)
+                            'responses_dir': args.responses_dir, 'is_visualizing': is_visualizing,
+                            'osc_client': osc_client})
 
         else:
             logger.error('Unknown message type: ' + str(msg))
