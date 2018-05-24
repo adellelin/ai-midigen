@@ -32,7 +32,7 @@ from pythonosc import osc_bundle_builder
 from pythonosc import udp_client
 
 # define constants
-_bars_per_call = 2
+_bars_per_call = 4
 _seconds_per_bar = 2
 _seconds_per_call = _bars_per_call * _seconds_per_bar
 
@@ -354,7 +354,8 @@ def main():
                     start_time=note_state[1],
                     end_time=msg_received)
                 note_buffer.append(cur_note)
-                logger.info('added note to buffer: \n    ' + str(cur_note))
+                logger.info('added note to buffer: \n    ' + str(cur_note) + str(is_visualizing))
+
 
                 # DYNAMIC ENCODING
                 if is_visualizing is True:
@@ -483,6 +484,7 @@ def main():
 
                 # clear response visuals
                 osc_client.send_message("/response_reset/", 1)
+                call_step_count = 0
 
             if bar_count == 1:
                 listening_msg = mido.Message(type='control_change', control=16, value=127)
@@ -507,7 +509,7 @@ def main():
 
             # FOR VISUALS - reset the step counter to zero at new input
             if time.time() + 4000 > play_start_time and playtimestarts is True:
-                call_step_count = 0
+
                 print("call_step_count", call_step_count)
                 end_note_time = 0
                 playtimestarts = False
