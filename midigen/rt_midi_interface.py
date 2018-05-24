@@ -483,6 +483,8 @@ def main():
 
                 # clear response visuals
                 osc_client.send_message("/response_reset/", 1)
+                call_step_count = 0
+
 
             if bar_count == 1:
                 listening_msg = mido.Message(type='control_change', control=16, value=127)
@@ -507,10 +509,12 @@ def main():
 
             # FOR VISUALS - reset the step counter to zero at new input
             if time.time() + 4000 > play_start_time and playtimestarts is True:
-                call_step_count = 0
+
                 print("call_step_count", call_step_count)
                 end_note_time = 0
                 playtimestarts = False
+
+
                 # clear response visuals
                 #osc_client.send_message("/response_reset/", 1)
 
