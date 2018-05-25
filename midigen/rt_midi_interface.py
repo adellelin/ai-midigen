@@ -43,7 +43,7 @@ class OscSendActor():
 
     def tell(self, message):
         if message['command'] == 'send_prob_dist':
-            print("told to : " + message)
+            #logging.info("told to : ", message)
 
             response_out_dist = message['response_out_dist']
             out_symbols = message['out_symbols']
@@ -125,9 +125,11 @@ class GenPlayActor():
                     url=self._crserver_url,
                     data=a,
                     headers={'Content-Type': 'application/octet-stream'})
-
-                # start nn animation visuals
-                client.send_message("/animation/seq", 1)  # trigger rnn animation
+                if is_visualizing is True:
+                    # start nn animation visuals
+                    client.send_message("/animation/seq", 1)  # trigger rnn animation
+                else:
+                    pass
                 # set the return type options
                 return_type=['application/json; charset=utf-8','application/octet-stream']
 
@@ -149,19 +151,15 @@ class GenPlayActor():
                         return
                     response_io = BytesIO(response_midi_bytes)
                     response_io.seek(0)
-                    response_out_dist = response_dict['output_distribution']
-                    response_out_np_dist = np.array(response_out_dist)
-                    out_symbols = np.argmax(response_out_np_dist, axis=1)
-                    out_symbols = out_symbols.tolist()
                     self.write_output_midi(response_io, responses_dir)
 
                     if is_visualizing is True:
-
-                        response_out_dist = message['response_out_dist']
-                        out_symbols = message['out_symbols']
-                        client = message['osc_client']
-                        visualActor.tell({'command': 'send_prob_dist', 'response_out_dist': response_out_dist, 'out_symbols': out_symbols,
-                                          'client': client})
+                        response_out_dist = response_dict['output_distribution']
+                        response_out_np_dist = np.array(response_out_dist)
+                        out_symbols = np.argmax(response_out_np_dist, axis=1)
+                        out_symbols = out_symbols.tolist()
+                        oscSendActor.tell({'command': 'send_prob_dist', 'response_out_dist': response_out_dist, 'out_symbols': out_symbols,
+                                          'osc_client': client})
 
 
                 # if in non-verbose, content is only midi file
@@ -407,15 +405,15 @@ def main():
                     note_encoded = note_encoded[:num_time_steps]
                     # num_time_steps = int(note_len/time_step)+1
 
-                    if (num_time_steps > 32):
-                        num_time_steps = 32
+                    if (num_time_steps > 64):
+                        num_time_steps = 64
 
                     try:
                         note_encoded.reshape((1, num_time_steps, encoder.num_symbols))
                     except ValueError as err:
                         # print("ERROR BAD SHAPE ERROR:{0}".format(err))
                         logger.error("ERROR BAD SHAPE ERROR:{0}".format(err))
-                        sys.exit(-1)
+                        continue
 
                     note_index = np.argmax(note_encoded, axis=1)
 
@@ -423,7 +421,7 @@ def main():
                     for i in range(len(note_index)):
                         call_step_count += 1
                         osc_client.send_message("/call_index/" + str(call_step_count), int(note_index[i]))
-                        print("note encoded", note_encoded.shape, note_encoded, note_index[i])
+                        print("note encoded", note_encoded.shape, note_index[i])
                         print("/call_index/" + str(call_step_count), note_index[i])
 
                     # rest note
@@ -477,6 +475,7 @@ def main():
             if model_idle is True:
                 # check to see if note has been played in previous bar
                 notes_in_previous_bar = False
+
                 for note in note_buffer:
                     bar_start_time = msg_received - _seconds_per_bar - args.call_padding_time
                     if note.start_time > bar_start_time:
@@ -510,7 +509,11 @@ def main():
 
                 # clear response visuals
                 osc_client.send_message("/response_reset/", 1)
+                # FOR VISUALS - reset the step counter to zero at new input
                 call_step_count = 0
+                print("call_step_count", call_step_count)
+                end_note_time = 0
+                playtimestarts = False
 
             if bar_count == 1:
                 listening_msg = mido.Message(type='control_change', control=16, value=127)
@@ -532,18 +535,6 @@ def main():
                     playtimestarts = True
                 else:
                     pass
-
-            # FOR VISUALS - reset the step counter to zero at new input
-            if time.time() + 4000 > play_start_time and playtimestarts is True:
-
-                print("call_step_count", call_step_count)
-                end_note_time = 0
-                playtimestarts = False
-                # clear response visuals
-                #osc_client.send_message("/response_reset/", 1)
-
-        # my_actor_ref.tell({'command': 'generate'})
-        # my_actor_ref.stop()
 
         elif msg.type == 'control_change' and msg.control == 21 and msg.value == 5:
             trigger_generation = call_bars - 1 <= bar_count < 2*call_bars - 1 and \
