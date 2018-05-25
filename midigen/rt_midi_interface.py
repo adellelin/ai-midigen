@@ -26,7 +26,6 @@ import math
 from os.path import join
 from midigen.encode import MelodyEncoder
 
-
 from pythonosc import osc_message_builder
 from pythonosc import osc_bundle_builder
 from pythonosc import udp_client
@@ -35,6 +34,52 @@ from pythonosc import udp_client
 _bars_per_call = 4
 _seconds_per_bar = 2
 _seconds_per_call = _bars_per_call * _seconds_per_bar
+
+
+# class GenPlayActor(pykka.ThreadingActor):
+class OscSendActor():
+    def __init__(self):
+        pass
+
+    def tell(self, message):
+        if message['command'] == 'send_prob_dist':
+            print("told to : " + message)
+
+            response_out_dist = message['response_out_dist']
+            out_symbols = message['out_symbols']
+            client = message['osc_client']
+
+            # print("output distribution", response_out_np_dist)
+            print("output symbols", out_symbols)
+            client.send_message("/output_symbols/", out_symbols)
+
+            # self._logger.info("is visualizing" + str(is_visualizing))
+
+            try:
+                response_out_np_dist = np.array(response_out_dist, dtype=float)
+                # set up osc bundle
+                bundle = osc_bundle_builder.OscBundleBuilder(
+                    osc_bundle_builder.IMMEDIATELY)
+                test_array = []
+                for index in range(len(response_out_np_dist)):
+                    sub_array = []
+                    msg = osc_message_builder.OscMessageBuilder(address="/probdist/" + str(index))
+                    for x in np.nditer(response_out_np_dist[index]):
+                        msg.add_arg(float(x) * 3)
+                        sub_array.append(float(x))
+                    bundle.add_content(msg.build())
+                    test_array.append(sub_array)
+                bundle = bundle.build()
+                client.send(bundle)
+                try:
+                    assert test_array[index] == response_out_dist[index]
+                except AssertionError:
+                    logging.warning("arrays don't match")
+            except IOError as e:
+                logging.warning("error")
+
+        pass
+
 
 
 # class GenPlayActor(pykka.ThreadingActor):
@@ -62,8 +107,9 @@ class GenPlayActor():
             inport = message['inport']
             responses_dir = message['responses_dir']
             is_visualizing = message['is_visualizing']
-
             client = message['osc_client']
+            oscSendActor = message['oscSendActor']
+
             if self._log_midi_files:
                 call_path = path.join(self._logdir, 'call'+str(self._midi_file_log_index)+'.mid')
                 midi.write(call_path)
@@ -107,40 +153,16 @@ class GenPlayActor():
                     response_out_np_dist = np.array(response_out_dist)
                     out_symbols = np.argmax(response_out_np_dist, axis=1)
                     out_symbols = out_symbols.tolist()
-                    client.send_message("/output_symbols/", out_symbols)
                     self.write_output_midi(response_io, responses_dir)
 
                     if is_visualizing is True:
-                        #print("output distribution", response_out_np_dist)
-                        print("output symbols", out_symbols)
-                        #self._logger.info("is visualizing" + str(is_visualizing))
 
-                        try:
-                            response_out_np_dist = np.array(response_out_dist, dtype=float)
-                            # set up osc bundle
-                            bundle = osc_bundle_builder.OscBundleBuilder(
-                                osc_bundle_builder.IMMEDIATELY)
-                            test_array = []
-                            for index in range(len(response_out_np_dist)):
-                                sub_array = []
-                                msg = osc_message_builder.OscMessageBuilder(address="/probdist/" + str(index))
-                                for x in np.nditer(response_out_np_dist[index]):
-                                    msg.add_arg(float(x)*3)
-                                    sub_array.append(float(x))
-                                bundle.add_content(msg.build())
-                                test_array.append(sub_array)
-                            bundle = bundle.build()
-                            client.send(bundle)
-                            try:
-                                assert test_array[index] == response_out_dist[index]
-                            except AssertionError:
-                                logging.warning("arrays don't match")
-                        except IOError as e:
-                            logging.warning("error")
-                        else:
-                            self._logger.debug('cr round trip: ' + str(time.time()-gen_start))
-                    else:
-                        pass
+                        response_out_dist = message['response_out_dist']
+                        out_symbols = message['out_symbols']
+                        client = message['osc_client']
+                        visualActor.tell({'command': 'send_prob_dist', 'response_out_dist': response_out_dist, 'out_symbols': out_symbols,
+                                          'client': client})
+
 
                 # if in non-verbose, content is only midi file
                 elif r.headers['content-type'] == 'application/octet-stream':
@@ -283,12 +305,16 @@ def main():
     logger.info('In port: ' + str(in_port) + ' Out port: ' + str(out_port))
     is_last_bar = False;
 
+    # create the osc sending actor
+    oscSendActor = OscSendActor()
+
     # initiate generation/play actor
     # actor = GenPlayActor.start(
     actor = GenPlayActor(
         outport=out_port, log_midi_files=args.log_midi_files, logdir=logdir,
         crserver_url=args.crserver_url, logger=logger, tempo=args.tempo)
     # atexit.register(actor.stop)
+
 
     # define state
     # counter that keeps track of current bar length
@@ -558,7 +584,7 @@ def main():
                 midi.instruments.append(inst)
                 actor.tell({'command': 'generate', 'midi': midi, 'inport':in_port,
                             'responses_dir': args.responses_dir, 'is_visualizing': is_visualizing,
-                            'osc_client': osc_client})
+                            'osc_client': osc_client, 'oscSendActor': oscSendActor})
 
         else:
             logger.error('Unknown message type: ' + str(msg))
@@ -566,3 +592,14 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+'''
+/animation/seq, 1
+/output_symbols
+bundle
+call_index
+call_index
+response_reset
+
+'''
