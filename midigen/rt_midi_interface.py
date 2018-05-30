@@ -526,7 +526,7 @@ def main():
                 logger.info('trigger playback at: ' + str(msg_received))
                 # send last bar state true on 2, 6, 14 bars otherwise false
                 is_last_bar = bar_count == bars_per_cycle - 2
-                actor.tell({'command': 'play', 'is_last_bar': is_last_bar})
+                #actor.tell({'command': 'play', 'is_last_bar': is_last_bar})
             # if bar count is in the last bar of response phrase
 
                 # FOR VISUALS to log time of responses playing
