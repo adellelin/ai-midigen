@@ -9,7 +9,7 @@
 			"modernui" : 1
 		}
 ,
-		"rect" : [ 34.0, 80.0, 931.0, 659.0 ],
+		"rect" : [ 34.0, 80.0, 1711.0, 1046.0 ],
 		"bgcolor" : [ 0.01924, 0.039546, 0.051854, 1.0 ],
 		"editing_bgcolor" : [ 0.264542, 0.246412, 0.247132, 1.0 ],
 		"bglocked" : 0,
@@ -132,7 +132,6 @@
 						"tags" : "",
 						"style" : "",
 						"subpatcher_template" : "",
-						"visible" : 1,
 						"boxes" : [ 							{
 								"box" : 								{
 									"comment" : "",
@@ -4728,7 +4727,6 @@
 						"tags" : "",
 						"style" : "",
 						"subpatcher_template" : "",
-						"visible" : 1,
 						"boxes" : [ 							{
 								"box" : 								{
 									"id" : "obj-3",
@@ -5020,7 +5018,6 @@
 										"tags" : "",
 										"style" : "",
 										"subpatcher_template" : "",
-										"visible" : 1,
 										"boxes" : [ 											{
 												"box" : 												{
 													"bubble" : 1,
@@ -8580,7 +8577,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 196.666748, 306.666748, 50.0, 22.0 ],
 									"style" : "",
-									"text" : "223 0"
+									"text" : "228 0"
 								}
 
 							}
@@ -8600,14 +8597,13 @@
 , 							{
 								"box" : 								{
 									"id" : "obj-536",
-									"linecount" : 2,
 									"maxclass" : "message",
 									"numinlets" : 2,
 									"numoutlets" : 1,
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 174.0, 154.666748, 53.0, 35.0 ],
 									"style" : "",
-									"text" : "/beat/ 2"
+									"text" : "/beat/ 4"
 								}
 
 							}
