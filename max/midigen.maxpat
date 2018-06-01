@@ -9,7 +9,7 @@
 			"modernui" : 1
 		}
 ,
-		"rect" : [ 34.0, 80.0, 1711.0, 1046.0 ],
+		"rect" : [ 317.0, 117.0, 952.0, 1046.0 ],
 		"bgcolor" : [ 0.01924, 0.039546, 0.051854, 1.0 ],
 		"editing_bgcolor" : [ 0.264542, 0.246412, 0.247132, 1.0 ],
 		"bglocked" : 0,
@@ -39,6 +39,19 @@
 		"style" : "",
 		"subpatcher_template" : "",
 		"boxes" : [ 			{
+				"box" : 				{
+					"id" : "obj-180",
+					"maxclass" : "newobj",
+					"numinlets" : 2,
+					"numoutlets" : 1,
+					"outlettype" : [ "" ],
+					"patching_rect" : [ 1419.0, 765.0, 59.0, 22.0 ],
+					"style" : "",
+					"text" : "speedlim"
+				}
+
+			}
+, 			{
 				"box" : 				{
 					"id" : "obj-37",
 					"maxclass" : "newobj",
@@ -84,7 +97,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 1570.0, 1415.0, 50.0, 22.0 ],
 					"style" : "",
-					"text" : "0"
+					"text" : "100"
 				}
 
 			}
@@ -329,6 +342,15 @@
 , 							{
 								"patchline" : 								{
 									"destination" : [ "obj-54", 0 ],
+									"order" : 1,
+									"source" : [ "obj-141", 0 ]
+								}
+
+							}
+, 							{
+								"patchline" : 								{
+									"destination" : [ "obj-72", 0 ],
+									"order" : 0,
 									"source" : [ "obj-141", 0 ]
 								}
 
@@ -451,7 +473,7 @@
 							"modernui" : 1
 						}
 ,
-						"rect" : [ 59.0, 104.0, 640.0, 480.0 ],
+						"rect" : [ 855.0, 275.0, 753.0, 656.0 ],
 						"bglocked" : 0,
 						"openinpresentation" : 0,
 						"default_fontsize" : 12.0,
@@ -478,6 +500,7 @@
 						"tags" : "",
 						"style" : "",
 						"subpatcher_template" : "",
+						"visible" : 1,
 						"boxes" : [ 							{
 								"box" : 								{
 									"comment" : "",
@@ -667,7 +690,16 @@
  ],
 						"lines" : [ 							{
 								"patchline" : 								{
+									"destination" : [ "obj-38", 0 ],
+									"order" : 1,
+									"source" : [ "obj-113", 0 ]
+								}
+
+							}
+, 							{
+								"patchline" : 								{
 									"destination" : [ "obj-49", 0 ],
+									"order" : 0,
 									"source" : [ "obj-113", 0 ]
 								}
 
@@ -1341,7 +1373,7 @@
 					"presentation_linecount" : 2,
 					"presentation_rect" : [ 18.605129, 736.533325, 75.333336, 35.0 ],
 					"style" : "",
-					"text" : "/ai/route/kevintoguitar 1"
+					"text" : "/ai/route/kevintoguitar 0"
 				}
 
 			}
@@ -4736,7 +4768,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 523.0, 41.0, 50.0, 22.0 ],
 									"style" : "",
-									"text" : "1"
+									"text" : "0"
 								}
 
 							}
@@ -5047,6 +5079,7 @@
 , 											{
 												"box" : 												{
 													"id" : "obj-13",
+													"int" : 1,
 													"maxclass" : "gswitch",
 													"numinlets" : 3,
 													"numoutlets" : 1,
@@ -8577,7 +8610,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 196.666748, 306.666748, 50.0, 22.0 ],
 									"style" : "",
-									"text" : "228 0"
+									"text" : "58 0"
 								}
 
 							}
@@ -8603,7 +8636,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 174.0, 154.666748, 53.0, 35.0 ],
 									"style" : "",
-									"text" : "/beat/ 4"
+									"text" : "/beat/ 2"
 								}
 
 							}
@@ -10529,7 +10562,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 183.250031, 165.986572, 50.0, 22.0 ],
 									"style" : "",
-									"text" : "0 1"
+									"text" : "0 2"
 								}
 
 							}
@@ -10850,7 +10883,7 @@
 									"presentation" : 1,
 									"presentation_rect" : [ 171.301666, 7.7966, 150.187393, 22.0 ],
 									"style" : "",
-									"text" : "/ai/route/kevintobass 0"
+									"text" : "/ai/route/kevintobass 1"
 								}
 
 							}
@@ -10888,7 +10921,7 @@
 									"presentation" : 1,
 									"presentation_rect" : [ 7.137285, 7.7966, 155.333344, 22.0 ],
 									"style" : "",
-									"text" : "/ai/route/kevintoguitar 1"
+									"text" : "/ai/route/kevintoguitar 0"
 								}
 
 							}
@@ -15679,7 +15712,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 165.000061, 159.0, 29.5, 22.0 ],
 									"style" : "",
-									"text" : "123"
+									"text" : "20"
 								}
 
 							}
@@ -15936,7 +15969,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 237.166748, 159.0, 29.5, 22.0 ],
 									"style" : "",
-									"text" : "20"
+									"text" : "123"
 								}
 
 							}
@@ -20029,7 +20062,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 82.499878, 937.716919, 90.0, 22.0 ],
 					"style" : "",
-					"text" : "patch 0 1"
+					"text" : "patch 0 2"
 				}
 
 			}
@@ -20683,7 +20716,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 203.982559, 1567.796753, 163.171295, 22.0 ],
 					"style" : "",
-					"text" : "/ai/state/guitar 0"
+					"text" : "/ai/route/kevintoguitar 0"
 				}
 
 			}
@@ -21851,16 +21884,7 @@
 			}
 , 			{
 				"patchline" : 				{
-					"destination" : [ "obj-138", 0 ],
-					"order" : 0,
-					"source" : [ "obj-112", 0 ]
-				}
-
-			}
-, 			{
-				"patchline" : 				{
 					"destination" : [ "obj-406", 0 ],
-					"order" : 1,
 					"source" : [ "obj-112", 0 ]
 				}
 
@@ -23307,17 +23331,8 @@
 			}
 , 			{
 				"patchline" : 				{
-					"destination" : [ "obj-143", 0 ],
-					"order" : 0,
-					"source" : [ "obj-33", 0 ]
-				}
-
-			}
-, 			{
-				"patchline" : 				{
 					"destination" : [ "obj-404", 0 ],
 					"midpoints" : [ 1498.387817, 1196.66333, 1500.429443, 1196.66333 ],
-					"order" : 1,
 					"source" : [ "obj-33", 0 ]
 				}
 
