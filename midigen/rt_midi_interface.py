@@ -61,7 +61,7 @@ class OscSendActor():
                 selected_note_index = []
 
                 if is_guitar:
-                    selected_note_index = [0, 1, 9, 12, 14, 21, 23, 24, 26, 27, 28, 31, 33, 35, 36, 38, 40, 43]
+                    selected_note_index = [0, 1, 6, 8, 9, 14, 15, 16, 17, 18, 20, 23, 24, 25, 26, 27, 29]
                 else:
                     for row_index in range(len(response_out_np_dist[0])):
                         selected_note_index.append(row_index)
