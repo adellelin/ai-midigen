@@ -48,6 +48,7 @@ class OscSendActor():
             response_out_dist = message['response_out_dist']
             out_symbols = message['out_symbols']
             client = message['osc_client']
+            is_guitar = message['is_guitar']
 
             # print("output distribution", response_out_np_dist)
             print("output symbols", out_symbols)
@@ -57,26 +58,42 @@ class OscSendActor():
 
             try:
                 response_out_np_dist = np.array(response_out_dist, dtype=float)
+                selected_note_index = []
+
+                if is_guitar:
+                    selected_note_index = [0, 1, 9, 12, 14, 21, 23, 24, 26, 27, 28, 31, 33, 35, 36, 38, 40, 43]
+                else:
+                    for row_index in range(len(response_out_np_dist[0])):
+                        selected_note_index.append(row_index)
+                print("note index", selected_note_index)
+
+
                 # set up osc bundle
                 bundle = osc_bundle_builder.OscBundleBuilder(
                     osc_bundle_builder.IMMEDIATELY)
                 test_array = []
+                #print("output prob", response_out_np_dist.shape, response_out_np_dist, len(response_out_np_dist))
                 for index in range(len(response_out_np_dist)):
                     sub_array = []
                     msg = osc_message_builder.OscMessageBuilder(address="/probdist/" + str(index))
-                    for x in np.nditer(response_out_np_dist[index]):
-                        msg.add_arg(float(x) * 3)
+                    #print("iter", index, response_out_np_dist[index])
+                    #for x in np.nditer(response_out_np_dist[index]):
+                    for column_index in selected_note_index:
+                        x = response_out_np_dist[index, column_index]
+                        msg.add_arg(float(x) * 10)
                         sub_array.append(float(x))
                     bundle.add_content(msg.build())
                     test_array.append(sub_array)
+                    #print("osc message prob", msg.address, msg.args)
                 bundle = bundle.build()
                 client.send(bundle)
+
                 try:
                     assert test_array[index] == response_out_dist[index]
                 except AssertionError:
                     logging.warning("arrays don't match")
             except IOError as e:
-                logging.warning("error")
+                print("error", e)
 
         pass
 
@@ -109,6 +126,7 @@ class GenPlayActor():
             is_visualizing = message['is_visualizing']
             client = message['osc_client']
             oscSendActor = message['oscSendActor']
+            is_guitar = message['is_guitar']
 
             if self._log_midi_files:
                 call_path = path.join(self._logdir, 'call'+str(self._midi_file_log_index)+'.mid')
@@ -159,7 +177,7 @@ class GenPlayActor():
                         out_symbols = np.argmax(response_out_np_dist, axis=1)
                         out_symbols = out_symbols.tolist()
                         oscSendActor.tell({'command': 'send_prob_dist', 'response_out_dist': response_out_dist, 'out_symbols': out_symbols,
-                                          'osc_client': client})
+                                          'osc_client': client, 'is_guitar': is_guitar})
 
 
                 # if in non-verbose, content is only midi file
@@ -236,6 +254,7 @@ def main():
     parser.add_argument('--call_padding_time', default=0.0625, type=float)
     parser.add_argument('--tempo', default=226, type=int, help='Changes playback tempo')
 
+
     # osc setup
     parser.add_argument("--ip", default="127.0.0.1",
                         help="The ip of the OSC server")
@@ -246,6 +265,11 @@ def main():
     args = parser.parse_args()
 
     osc_client = udp_client.SimpleUDPClient(args.ip, args.port)
+
+    if args.in_port == 'AI_Guitar_In' and _bars_per_call == 4:
+        is_guitar = True
+    else:
+        is_guitar = False
 
     # dynamic encoder variables
     end_note_time = 0
@@ -338,7 +362,7 @@ def main():
     for msg in in_port:
 
         msg_received = time.time()
-        logger.debug('received message:\n    ' + str(msg) + '\n    at ' + str(msg_received))
+        #logger.debug('received message:\n    ' + str(msg) + '\n    at ' + str(msg_received))
 
         # prune old entries from note_buffer
         n = 0
@@ -409,13 +433,13 @@ def main():
                         num_time_steps = 64
 
                     try:
-                        note_encoded.reshape((1, num_time_steps, encoder.num_symbols))
+                        note_encoded.reshape((1, num_time_steps, encoder.num_symbols)) ####
                     except ValueError as err:
                         # print("ERROR BAD SHAPE ERROR:{0}".format(err))
                         logger.error("ERROR BAD SHAPE ERROR:{0}".format(err))
                         continue
 
-                    note_index = np.argmax(note_encoded, axis=1)
+                    note_index = np.argmax(note_encoded, axis=1) #####
 
                     # get returned encoding, send to osc
                     for i in range(len(note_index)):
@@ -526,7 +550,7 @@ def main():
                 logger.info('trigger playback at: ' + str(msg_received))
                 # send last bar state true on 2, 6, 14 bars otherwise false
                 is_last_bar = bar_count == bars_per_cycle - 2
-                #actor.tell({'command': 'play', 'is_last_bar': is_last_bar})
+                actor.tell({'command': 'play', 'is_last_bar': is_last_bar})
             # if bar count is in the last bar of response phrase
 
                 # FOR VISUALS to log time of responses playing
@@ -575,7 +599,7 @@ def main():
                 midi.instruments.append(inst)
                 actor.tell({'command': 'generate', 'midi': midi, 'inport':in_port,
                             'responses_dir': args.responses_dir, 'is_visualizing': is_visualizing,
-                            'osc_client': osc_client, 'oscSendActor': oscSendActor})
+                            'osc_client': osc_client, 'oscSendActor': oscSendActor, 'is_guitar':is_guitar})
 
         else:
             logger.error('Unknown message type: ' + str(msg))
