@@ -13,14 +13,13 @@ import tensorflow as tf
 from tensorflow.python.saved_model import loader as tf_loader
 import numpy as np
 import pretty_midi
-from midigen.encode import MelodyEncoder
-from midigen.package import logger, version
-
 try:
     import pymvnc as mvnc
-    mvnc_available = True
 except ImportError:
-    mvnc_available = False
+    mvnc = None
+from midigen.encode import encoder_from_dict
+from midigen.package import logger, version
+
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
@@ -34,9 +33,13 @@ def main():
 
     logger.debug('launching midigen server version: ' + version)
 
-    if not mvnc_available and args.mvncs:
-        logger.error('Install pymvnc to use MvNCS as backend')
-        return
+    if mvnc is None and args.mvncs:
+        print('You must install pymvnc to use MvNCS as backend')
+        exit(1)
+
+    logger.debug('loading encoder')
+    with open(join(args.model_dir, 'encoder.json'), mode='r') as f:
+        encoder = encoder_from_dict(json.load(f))
 
     # Fire up the tensorflow session and recombobulate the generation graph
     if not args.mvncs:
@@ -45,39 +48,35 @@ def main():
         atexit.register(sess.close)
         tf_loader.load(sess, [], args.model_dir)
         logger.debug('Finished loading tensorflow model.')
+        outputs = []
+        for i in range(encoder.num_time_steps):
+            outputs.append(sess.graph.get_tensor_by_name('decoder/out'+str(i)+':0'))
+        call_ohcs = sess.graph.get_tensor_by_name('call_ohcs:0')
     else:
         logger.debug('Connecting to MvNCS.')
         devs = mvnc.EnumerateDevices()
         if len(devs) == 0:
-            logger.debug('No MvNCS found!')
-            return
+            print('No MvNCS found!')
+            exit(1)
+
         # Find first free device (unfortunately no better way to do it with mvncapi)
+        dev = None
         for d in devs:
             try:
                 dev = mvnc.Device(d)
                 dev.OpenDevice()
                 break
             except:
-                dev = None
-        if dev == None:
-            logger.debug('No free MvNCS found!')
-            return
+                pass
+        if dev is None:
+            print('No free MvNCS found!')
+            exit(1)
+
         logger.debug('Connected to MvNCS; allocating graph file')
         with open(join(args.model_dir, 'midigen.graph'), mode='rb') as f:
             graph_blob = f.read()
             graph = dev.AllocateGraph(graph_blob)
         logger.debug('Finished loading graph on MvNCS.')
-
-    logger.debug('loading encoder')
-    with open(join(args.model_dir, 'encoder.json'), mode='r') as f:
-        encoder = MelodyEncoder.from_json(f.read())
-
-    # TODO: use builder signatures here?
-    if not args.mvncs:
-        outputs = []
-        for i in range(encoder.num_time_steps):
-            outputs.append(sess.graph.get_tensor_by_name('decoder/out'+str(i)+':0'))
-        call_ohcs = sess.graph.get_tensor_by_name('call_ohcs:0')
 
     app = Flask(__name__)
     api = Api(app)

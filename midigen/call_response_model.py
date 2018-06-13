@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import tensorflow as tf
 import pretty_midi as pm
+import json
 from midigen.encode import encoder_from_dict
 
 _LOGGER = logging.getLogger('CallResponseModel')
@@ -148,12 +149,105 @@ class CallResponseModel:
                 dec_states.append(state_cur)
             dec_cat = tf.stack(dec_outputs, axis=1)
 
-        return dec_cat
+        core_variables = [
+            'decoder/de_embed_w',
+            'decoder/de_embed_b',
+            'encoder/rnn/basic_lstm_cell/kernel',
+            'encoder/rnn/basic_lstm_cell/bias',
+            'decoder/basic_lstm_cell/kernel',
+            'decoder/basic_lstm_cell/bias']
+
+        return dec_cat, core_variables
+
+    @staticmethod
+    def inference_model(model_path):
+        with open(join(model_path, 'variables.json'), mode='w') as f:
+            core_variables = json.load(f)['core_variables']
+
+        pass
+        # # load all checkpointed variables to convert them to float_type
+        # with tf.Session() as sess:
+        #     variables = {}
+        #     for name, shape in get.items():
+        #         variables[name] = tf.Variable(
+        #             np.zeros(shape, dtype=train_type), name=name)
+        #
+        #     saver = tf.train.Saver(variables)
+        #     cp = tf.train.latest_checkpoint(join(dirname(__file__), training_dir))
+        #     saver.restore(sess, cp)
+        #
+        #     arrays = {}
+        #     for name, var in variables.items():
+        #         arrays[name] = var.eval().astype(float_type)
+        # sess.close()
+        # tf.reset_default_graph()
+        #
+        # with tf.Session() as sess:
+        #
+        #     batch_size = 1
+        #     call_ohcs = tf.placeholder(
+        #         dtype=float_type,
+        #         shape=(batch_size, mel.num_time_steps, mel.num_symbols),
+        #         name='call_ohcs')
+        #
+        #     with tf.variable_scope('encoder/rnn') as vs:
+        #
+        #         cell = tf.nn.rnn_cell.BasicLSTMCell(HIDDEN_CODE_SIZE)
+        #         enc_state = cell.zero_state(batch_size, float_type)
+        #         for i in range(mel.num_time_steps):
+        #             enc_outputs, enc_state = cell(call_ohcs[:, i, :], enc_state)
+        #         enc_w, enc_b = cell.weights
+        #
+        #     with tf.variable_scope('decoder'):
+        #         de_embed_w = tf.Variable(arrays['decoder/de_embed_w'], name='de_embed_w')
+        #         de_embed_b = tf.Variable(arrays['decoder/de_embed_b'], name='de_embed_b')
+        #
+        #         cell = tf.nn.rnn_cell.BasicLSTMCell(HIDDEN_CODE_SIZE)
+        #         go_np = np.zeros((batch_size, mel.num_symbols + 1), dtype=float_type)
+        #         go_np[:, -1] = 1
+        #         go = tf.constant(go_np)
+        #
+        #         h_first, c_first = cell(go, enc_state)
+        #         dec_w, dec_b = cell.weights
+        #
+        #         de_first = tf.add(tf.matmul(h_first, de_embed_w), de_embed_b, name='out0')
+        #         dec_outputs = [de_first]
+        #         dec_states = [c_first]
+        #         for i in range(mel.num_time_steps - 1):
+        #             prev_prob = tf.nn.softmax(dec_outputs[-1], dim=1)
+        #             h_cur, state_cur = cell(prev_prob, dec_states[-1])
+        #
+        #             de_cur = tf.add(tf.matmul(h_cur, de_embed_w), de_embed_b, name='out' + str(i + 1))
+        #             dec_outputs.append(de_cur)
+        #             dec_states.append(state_cur)
+        #
+        #     sess.run(tf.global_variables_initializer())
+        #     enc_w.load(arrays['encoder/rnn/basic_lstm_cell/kernel'], session=sess)
+        #     enc_b.load(arrays['encoder/rnn/basic_lstm_cell/bias'], session=sess)
+        #     dec_w.load(arrays['decoder/basic_lstm_cell/kernel'], session=sess)
+        #     dec_b.load(arrays['decoder/basic_lstm_cell/bias'], session=sess)
+        #
+        #     shutil.rmtree(join(dirname(__file__), training_dir, 'eval'))
+        #
+        #     builder = saved_model_builder.SavedModelBuilder(join(dirname(__file__), training_dir, 'eval/model'))
+        #     builder.add_meta_graph_and_variables(
+        #         sess, [])
+        #     builder.save()
+        #
+        #     with open(join(dirname(__file__), training_dir, 'eval/model', 'encoder.json'), mode='w') as f:
+        #         f.write(mel.to_json())
 
     def train(self, dataset, output_path):
+        training_params = {}
         for param in self._training_params:
-            if getattr(self, param) is None:
+            param_val = getattr(self, param)
+            if param_val is None:
                 raise ValueError(f'Key "{param}" not set in constructor, but is required to train the model.')
+
+            training_params[param] = param_val
+
+        with open(join(output_path, 'training_parameters.json'), mode='w') as f:
+            json.dump(training_params, f)
 
         num_training_examples = dataset['training_indices'].size
         num_batches, remainder = divmod(num_training_examples, self.batch_size)
@@ -182,7 +276,10 @@ class CallResponseModel:
                 batch_calls = tf.gather(calls, batch_indices, axis=0)
                 batch_responses = tf.gather(responses, batch_indices, axis=0)
 
-                outputs = self.core_graph(batch_calls, batch_responses)
+                outputs, core_variables = self.core_graph(batch_calls, batch_responses)
+
+                with open(join(output_path, 'variables.json'), mode='w') as f:
+                    json.dump({'core_variables': core_variables}, f)
 
                 with tf.variable_scope('loss'):
                     cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(
