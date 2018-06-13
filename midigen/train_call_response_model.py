@@ -16,6 +16,8 @@ def main():
     parser.add_argument(
         '--hidden_code_size', type=int, help='size of the latent encoding', required=True)
     parser.add_argument(
+        '--max_response_length', type=int, help='maximum length of response', required=True)
+    parser.add_argument(
         '--batch_size', type=int, help='batch size used for training', required=True)
     parser.add_argument(
         '--float_type', help='precision used for training', choices=['float32', 'float64'], required=True)
@@ -39,6 +41,7 @@ def main():
     params = {
         'encoder_dict': encoder_dict,
         'hidden_code_size': args.hidden_code_size,
+        'max_response_length': args.max_response_length,
         'batch_size': args.batch_size,
         'float_type': args.float_type,
         'validation_ratio': args.validation_ratio,

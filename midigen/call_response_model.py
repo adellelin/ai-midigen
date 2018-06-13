@@ -1,11 +1,14 @@
 from os.path import join
 from os import walk
 import sys
+import shutil
 import logging
+import json
+from errno import ENOENT
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.saved_model.builder import SavedModelBuilder
 import pretty_midi as pm
-import json
 from midigen.encode import encoder_from_dict
 
 _LOGGER = logging.getLogger('CallResponseModel')
@@ -23,6 +26,7 @@ class CallResponseModel:
             self.tf_type = tf.float32
         else:
             raise ValueError()
+        self.max_response_length = hparams['max_response_length']
 
         self.seed = None
         self.validation_ratio = None
@@ -113,7 +117,6 @@ class CallResponseModel:
                 cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.keep_prob)
             enc_outputs, enc_state = tf.nn.dynamic_rnn(
                 cell, inputs, dtype=self.float_type)
-            # enc_w, enc_b = cell.weights
 
         with tf.variable_scope('decoder', reuse=tf.AUTO_REUSE):
             de_embed_init = np.random.normal(
@@ -136,8 +139,8 @@ class CallResponseModel:
             de_first = tf.add(tf.matmul(h_first, de_embed_w), de_embed_b, name='out0')
             dec_outputs = [de_first]
             dec_states = [c_first]
-            num_time_steps = inputs.shape[1]
-            for i in range(num_time_steps - 1):
+
+            for i in range(self.max_response_length - 1):
                 if target_response is None:
                     prev_prob = tf.nn.softmax(dec_outputs[-1], dim=1)
                     h_cur, state_cur = cell(prev_prob, dec_states[-1])
@@ -150,92 +153,74 @@ class CallResponseModel:
             dec_cat = tf.stack(dec_outputs, axis=1)
 
         core_variables = [
-            'decoder/de_embed_w',
-            'decoder/de_embed_b',
-            'encoder/rnn/basic_lstm_cell/kernel',
-            'encoder/rnn/basic_lstm_cell/bias',
-            'decoder/basic_lstm_cell/kernel',
-            'decoder/basic_lstm_cell/bias']
+            'decoder/de_embed_w:0',
+            'decoder/de_embed_b:0',
+            'encoder/rnn/basic_lstm_cell/kernel:0',
+            'encoder/rnn/basic_lstm_cell/bias:0',
+            'decoder/basic_lstm_cell/kernel:0',
+            'decoder/basic_lstm_cell/bias:0']
 
         return dec_cat, core_variables
 
     @staticmethod
-    def inference_model(model_path):
-        with open(join(model_path, 'variables.json'), mode='w') as f:
-            core_variables = json.load(f)['core_variables']
+    def inference_model(model_path, hparams):
+        inference_model = CallResponseModel(hparams)
 
-        pass
-        # # load all checkpointed variables to convert them to float_type
-        # with tf.Session() as sess:
-        #     variables = {}
-        #     for name, shape in get.items():
-        #         variables[name] = tf.Variable(
-        #             np.zeros(shape, dtype=train_type), name=name)
-        #
-        #     saver = tf.train.Saver(variables)
-        #     cp = tf.train.latest_checkpoint(join(dirname(__file__), training_dir))
-        #     saver.restore(sess, cp)
-        #
-        #     arrays = {}
-        #     for name, var in variables.items():
-        #         arrays[name] = var.eval().astype(float_type)
-        # sess.close()
-        # tf.reset_default_graph()
-        #
-        # with tf.Session() as sess:
-        #
-        #     batch_size = 1
-        #     call_ohcs = tf.placeholder(
-        #         dtype=float_type,
-        #         shape=(batch_size, mel.num_time_steps, mel.num_symbols),
-        #         name='call_ohcs')
-        #
-        #     with tf.variable_scope('encoder/rnn') as vs:
-        #
-        #         cell = tf.nn.rnn_cell.BasicLSTMCell(HIDDEN_CODE_SIZE)
-        #         enc_state = cell.zero_state(batch_size, float_type)
-        #         for i in range(mel.num_time_steps):
-        #             enc_outputs, enc_state = cell(call_ohcs[:, i, :], enc_state)
-        #         enc_w, enc_b = cell.weights
-        #
-        #     with tf.variable_scope('decoder'):
-        #         de_embed_w = tf.Variable(arrays['decoder/de_embed_w'], name='de_embed_w')
-        #         de_embed_b = tf.Variable(arrays['decoder/de_embed_b'], name='de_embed_b')
-        #
-        #         cell = tf.nn.rnn_cell.BasicLSTMCell(HIDDEN_CODE_SIZE)
-        #         go_np = np.zeros((batch_size, mel.num_symbols + 1), dtype=float_type)
-        #         go_np[:, -1] = 1
-        #         go = tf.constant(go_np)
-        #
-        #         h_first, c_first = cell(go, enc_state)
-        #         dec_w, dec_b = cell.weights
-        #
-        #         de_first = tf.add(tf.matmul(h_first, de_embed_w), de_embed_b, name='out0')
-        #         dec_outputs = [de_first]
-        #         dec_states = [c_first]
-        #         for i in range(mel.num_time_steps - 1):
-        #             prev_prob = tf.nn.softmax(dec_outputs[-1], dim=1)
-        #             h_cur, state_cur = cell(prev_prob, dec_states[-1])
-        #
-        #             de_cur = tf.add(tf.matmul(h_cur, de_embed_w), de_embed_b, name='out' + str(i + 1))
-        #             dec_outputs.append(de_cur)
-        #             dec_states.append(state_cur)
-        #
-        #     sess.run(tf.global_variables_initializer())
-        #     enc_w.load(arrays['encoder/rnn/basic_lstm_cell/kernel'], session=sess)
-        #     enc_b.load(arrays['encoder/rnn/basic_lstm_cell/bias'], session=sess)
-        #     dec_w.load(arrays['decoder/basic_lstm_cell/kernel'], session=sess)
-        #     dec_b.load(arrays['decoder/basic_lstm_cell/bias'], session=sess)
-        #
-        #     shutil.rmtree(join(dirname(__file__), training_dir, 'eval'))
-        #
-        #     builder = saved_model_builder.SavedModelBuilder(join(dirname(__file__), training_dir, 'eval/model'))
-        #     builder.add_meta_graph_and_variables(
-        #         sess, [])
-        #     builder.save()
-        #
-        #     with open(join(dirname(__file__), training_dir, 'eval/model', 'encoder.json'), mode='w') as f:
-        #         f.write(mel.to_json())
+        with open(join(model_path, 'variables.json'), mode='r') as f:
+            core_variables = json.load(f)
+
+        if hparams['float_type'] == 'float64':
+            tf_type = tf.float64
+            np_type = np.float64
+        elif hparams['float_type'] == 'float32':
+            tf_type = tf.float32
+            np_type = np.float32
+        else:
+            raise ValueError()
+
+        # load all checkpointed variables to convert them to float_type
+        tf.reset_default_graph()
+        with tf.Session() as sess:
+            variables = {}
+            variables_to_load = []
+            for name, shape in core_variables.items():
+                ref = tf.Variable(np.zeros(shape, dtype=np_type), name=name[:-2])
+                variables[name] = ref
+                variables_to_load.append(ref)
+
+            saver = tf.train.Saver(variables_to_load)
+            cp = tf.train.latest_checkpoint(model_path)
+            saver.restore(sess, cp)
+
+            variable_values = {}
+            for name, var in variables.items():
+                variable_values[name] = var.eval().astype(np_type)
+        sess.close()
+        tf.reset_default_graph()
+
+        with tf.Session() as sess:
+            call = tf.placeholder(
+                dtype=tf_type,
+                shape=(None, None, inference_model.encoder.encoding_channels),
+                name='call')
+            inference_model.core_graph(call, None)
+
+            sess.run(tf.global_variables_initializer())
+            for var in tf.global_variables():
+                var.load(variable_values[var.name], session=sess)
+
+            builder_path = join(model_path, 'inference_builder')
+            try:
+                shutil.rmtree(builder_path)
+            except OSError as e:
+                if e.errno == ENOENT:
+                    pass
+                else:
+                    raise
+            builder = SavedModelBuilder(join(model_path, 'inference_builder'))
+            builder.add_meta_graph_and_variables(
+                sess, [])
+            builder.save()
 
     def train(self, dataset, output_path):
         training_params = {}
@@ -278,8 +263,13 @@ class CallResponseModel:
 
                 outputs, core_variables = self.core_graph(batch_calls, batch_responses)
 
+                core_variable_map = {}
+                for name in core_variables:
+                    cur_shape = sess.graph.get_tensor_by_name(name).shape
+                    core_variable_map[name] = cur_shape.as_list()
+
                 with open(join(output_path, 'variables.json'), mode='w') as f:
-                    json.dump({'core_variables': core_variables}, f)
+                    json.dump(core_variable_map, f)
 
                 with tf.variable_scope('loss'):
                     cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(
@@ -349,8 +339,6 @@ class CallResponseModel:
                         # TODO: check for reversions and rewind
                         saver.save(sess, join(output_path, 'checkpoint'), write_meta_graph=False, global_step=epoch)
 
-                        # TODO: build inference model
-
                     for batch_n in range(num_batches):
                         feed = {
                             batch_indices:
@@ -362,4 +350,6 @@ class CallResponseModel:
 
                     sess.run([increment_epoch])
         except KeyboardInterrupt:
+            # TODO: build inference model
+            CallResponseModel.inference_model(output_path, self.hparams)
             sys.exit(0)
