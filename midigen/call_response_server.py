@@ -92,10 +92,10 @@ def main():
                 e_dict = {'error_type': str(e_type),
                           'error_value': str(e_value),
                           'error_traceback': ''.join(e_traceback)}
-                j = json.dumps(e_dict, ensure_ascii=False).encode('utf8')
-                response = make_response(j)
-                response.headers['content-type'] = 'application/json; charset=utf-8'
-                return response
+                error_json = json.dumps(e_dict, ensure_ascii=False).encode('utf8')
+                error_response_value = make_response(error_json)
+                error_response_value.headers['content-type'] = 'application/json; charset=utf-8'
+                return error_response_value
 
             try:
                 call_midi = pretty_midi.PrettyMIDI(request.stream)
@@ -103,7 +103,7 @@ def main():
                 return error_response(err)
 
             try:
-                call_encoded = encoder.encode_ohc(call_midi).reshape((1, encoder.num_time_steps, encoder.num_symbols))
+                call_encoded = encoder.encode(call_midi).reshape((1, encoder.num_time_steps, encoder.num_symbols))
             except IndexError as err:
                 return error_response(err)
 
@@ -115,8 +115,7 @@ def main():
                 outputs_cur, _ = graph.GetResult()
                 outputs_cat = np.array(outputs_cur, dtype=np.float32)
 
-            output_symbols = np.argmax(outputs_cat, axis=2).reshape(encoder.num_time_steps)
-            response_midi = encoder.decode(output_symbols)
+            response_midi = encoder.decode(outputs_cat)
 
             sio = BytesIO()
             response_midi.write(sio)

@@ -1,4 +1,4 @@
-import json
+import copy
 import sys
 import numpy as np
 from abc import ABC, abstractmethod
@@ -12,7 +12,10 @@ _LOGGER = logging.getLogger('midigen-encoder')
 
 
 def encoder_from_dict(the_dict):
-    return getattr(sys.modules[__name__], the_dict['encoder_type'])(**the_dict)
+    type_name = the_dict['encoder_type']
+    pruned = copy.deepcopy(the_dict)
+    del pruned['encoder_type']
+    return getattr(sys.modules[__name__], type_name)(**pruned)
 
 
 class Encoder(ABC):
@@ -42,7 +45,7 @@ class Encoder(ABC):
 
 
 class PolyEncoder(Encoder):
-    def __init__(self, allowed_pitches, sample_frequency, press_threshold, hold_threshold, max_len, **kwargs):
+    def __init__(self, allowed_pitches, sample_frequency, press_threshold, hold_threshold, max_len):
         self.allowed_pitches = allowed_pitches
         self.num_pitches = len(allowed_pitches)
         self.sample_frequency = sample_frequency
@@ -57,6 +60,14 @@ class PolyEncoder(Encoder):
         self.encoding_channels = self.chans_per_pitch*self.num_pitches
         self.pitch_to_index = {p: n for n, p in enumerate(allowed_pitches)}
         self.index_to_pitch = {n: p for p, n in self.pitch_to_index.items()}
+
+    def __dict__(self):
+        return dict({
+            u'allowed_pitches': self.allowed_pitches,
+            u'sample_frequency': self.sample_frequency,
+            u'press_threshold': self.press_threshold,
+            u'hold_threshold': self.hold_threshold,
+            u'max_len': self.max_len})
 
     def encode(self, midi, instrument_index):
         inst = midi.instruments[instrument_index]
@@ -148,7 +159,7 @@ class PolyEncoder(Encoder):
         return midi
 
 
-class MelodyEncoder(object):
+class MelodyEncoder(Encoder):
     def __init__(self, allowed_pitches, time_resolution, num_bars, bar_time):
 
         # set properties
@@ -170,6 +181,7 @@ class MelodyEncoder(object):
         self.num_symbols = self.num_pitches + 2
         self.num_time_steps = self.time_resolution * self.total_time
         self.sixteeth_time = self.bar_time / 16.0
+        self.encoding_channels = self.num_symbols
 
     def __dict__(self):
         return dict({
@@ -177,13 +189,6 @@ class MelodyEncoder(object):
             u'time_resolution': self.time_resolution,
             u'num_bars': self.num_bars,
             u'bar_time': self.bar_time})
-
-    def to_json(self):
-        return json.dumps(self.__dict__())
-
-    @staticmethod
-    def from_json(s):
-        return MelodyEncoder(**dict(json.loads(s)))
 
     def encode(self, midi, instrument_index=0):
         """
@@ -235,41 +240,30 @@ class MelodyEncoder(object):
                 encoding[step_n] = self.hold_note
             held_key = cur_key
 
-        return encoding
-
-    def encode_ohc(self, midi, instrument_index=0):
-        """
-        Encode a pretty midi object into a one hot code sequence
-        :param midi a pretty_midi midi object
-        :param instrument_index index of the instrument to encode
-        :return a numpy encoding array containing one hot codes
-        """
-        symbols = self.encode(midi, instrument_index)
         ohcs = np.zeros((self.num_time_steps, self.num_symbols), dtype=np.float32)
-
-        # TODO: naive approach. make this more efficient?
         for step_n in range(self.num_time_steps):
-            ohcs[step_n, symbols[step_n]] = 1.0
+            ohcs[step_n, encoding[step_n]] = 1.0
 
         return ohcs
 
-    def decode(self, encoding,
+    def decode(self, probability,
                program=pm.instrument_name_to_program('Acoustic Grand Piano')):
         """
-        Decode a symbol sequence into a pretty midi object
+        Decode a symbol probability sequence into a pretty midi object
 
-        :param encoding: the encoded numpy array
+        :param probability: the probability sequence numpy array
         :param program: pretty_midi instrument program
         :return: a pretty_midi midi object
         """
 
+        symbols = np.squeeze(np.argmax(probability, axis=2))
         midi = pm.PrettyMIDI()
         inst = pm.Instrument(program=program)
 
         start_time = None
         cur_key = None
         key_on = False
-        for elem_n, elem in enumerate(encoding):
+        for elem_n, elem in enumerate(symbols):
             # start note
             if not key_on and elem > self.no_note:
                 key_on = True
@@ -311,15 +305,13 @@ class MelodyEncoder(object):
                 cur_key = elem
                 start_time = stop_time
         if key_on:
-            stop_time = float(len(encoding))/self.time_resolution
+            stop_time = float(len(symbols))/self.time_resolution
             inst.notes.append(
                 pm.Note(velocity=self.default_velocity,
                         pitch=self.decoder_lut[cur_key],
                         start=start_time, end=stop_time))
         midi.instruments.append(inst)
         return midi
-
-
 
 
 def concat(midis, min_len=None):
