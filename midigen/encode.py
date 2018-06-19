@@ -256,7 +256,7 @@ class MelodyEncoder(Encoder):
         :return: a pretty_midi midi object
         """
 
-        symbols = np.squeeze(np.argmax(probability, axis=2))
+        symbols = np.argmax(probability, axis=1)
         midi = pm.PrettyMIDI()
         inst = pm.Instrument(program=program)
 
@@ -312,40 +312,3 @@ class MelodyEncoder(Encoder):
                         start=start_time, end=stop_time))
         midi.instruments.append(inst)
         return midi
-
-
-def concat(midis, min_len=None):
-    """
-    Concatenate notes in time from  a list of pretty midi objects
-    :param midis: an iterable of midis
-    :param min_len: the minimum length of each segment
-    :return: a pretty_midi midi object
-    """
-    midi = pm.PrettyMIDI()
-    prev_end_time = 0.0
-    new_insts = {}
-
-    for cur_midi in midis:
-        cur_end_time = 0.0
-        for inst in cur_midi.instruments:
-            if inst.program not in new_insts.keys():
-                new_insts[inst.program] = pm.Instrument(program=inst.program)
-            for note in inst.notes:
-                new_note = pm.Note(
-                    velocity=note.velocity,
-                    pitch=note.pitch,
-                    start=note.start + prev_end_time,
-                    end=note.end + prev_end_time)
-
-                new_insts[inst.program].notes.append(new_note)
-                cur_end_time = max(cur_end_time, new_note.end)
-
-        if min_len is None:
-            prev_end_time = cur_end_time
-        else:
-            prev_end_time = max(cur_end_time, prev_end_time + min_len)
-
-    for new_inst in new_insts.values():
-        midi.instruments.append(new_inst)
-
-    return midi

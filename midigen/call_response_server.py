@@ -1,4 +1,3 @@
-import atexit
 import argparse
 from io import BytesIO
 import base64
@@ -6,11 +5,9 @@ import logging
 import sys
 import traceback
 import json
-from os.path import join
+from os.path import join, expanduser
 from flask import Flask, request, make_response
 from flask_restful import Resource, Api
-import tensorflow as tf
-from tensorflow.python.saved_model import loader as tf_loader
 import numpy as np
 import pretty_midi
 try:
@@ -18,6 +15,7 @@ try:
 except ImportError:
     mvnc = None
 from midigen.encode import encoder_from_dict
+from midigen.call_response_model import EvalModel
 from midigen.package import logger, version
 
 
@@ -43,15 +41,7 @@ def main():
 
     # Fire up the tensorflow session and recombobulate the generation graph
     if not args.mvncs:
-        logger.debug('Loading tensorflow model.')
-        sess = tf.Session()
-        atexit.register(sess.close)
-        tf_loader.load(sess, [], args.model_dir)
-        logger.debug('Finished loading tensorflow model.')
-        outputs = []
-        for i in range(encoder.num_time_steps):
-            outputs.append(sess.graph.get_tensor_by_name('decoder/out'+str(i)+':0'))
-        call_ohcs = sess.graph.get_tensor_by_name('call_ohcs:0')
+        model = EvalModel(expanduser(args.model_dir))
     else:
         logger.debug('Connecting to MvNCS.')
         devs = mvnc.EnumerateDevices()
@@ -107,8 +97,7 @@ def main():
                 return error_response(err)
 
             if not args.mvncs:
-                outputs_cur = sess.run(outputs, feed_dict={call_ohcs: call_encoded})
-                outputs_cat = np.array(outputs_cur, dtype=np.float32)
+                outputs_cat = model.evaluate(call_encoded)[0]
             else:
                 graph.LoadTensor(call_encoded.astype(np.float16), '')
                 outputs_cur, _ = graph.GetResult()

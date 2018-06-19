@@ -4,10 +4,13 @@ import sys
 import shutil
 import logging
 import json
+import pickle
+import atexit
 from errno import ENOENT
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.saved_model.builder import SavedModelBuilder
+from tensorflow.python.saved_model import loader as tf_loader
 import pretty_midi as pm
 from midigen.encode import encoder_from_dict
 
@@ -51,6 +54,8 @@ class CallResponseModel:
                 pass
 
         self.encoder = encoder_from_dict(hparams['encoder_dict'])
+
+        self.eval_session = None
 
     def build_dataset(self, data_dir):
         _LOGGER.debug(f'building dataset from {data_dir}')
@@ -131,10 +136,11 @@ class CallResponseModel:
                 cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.keep_prob)
 
             # generate GO vector
-            go_np = np.zeros((self.batch_size, self.encoder.encoding_channels + 1))
-            go_np[:, -1] = 1
-            go = tf.constant(go_np, dtype=self.tf_type)
-
+            batch_size = tf.shape(inputs)[0]
+            go_np = np.zeros(self.encoder.encoding_channels + 1)
+            go_np[-1] = 1
+            go_template = tf.constant(go_np[np.newaxis, :], dtype=self.tf_type)
+            go = tf.tile(go_template, [batch_size, 1])
             h_first, c_first = cell(go, enc_state)
             de_first = tf.add(tf.matmul(h_first, de_embed_w), de_embed_b, name='out0')
             dec_outputs = [de_first]
@@ -150,7 +156,7 @@ class CallResponseModel:
                 de_cur = tf.add(tf.matmul(h_cur, de_embed_w), de_embed_b, name='out' + str(i + 1))
                 dec_outputs.append(de_cur)
                 dec_states.append(state_cur)
-            dec_cat = tf.stack(dec_outputs, axis=1)
+        dec_cat = tf.stack(dec_outputs, axis=1, name='response')
 
         core_variables = [
             'decoder/de_embed_w:0',
@@ -222,7 +228,23 @@ class CallResponseModel:
                 sess, [])
             builder.save()
 
-    def train(self, dataset, output_path):
+        with open(join(model_path, 'inference_builder', 'encoder.json'), mode='w') as f:
+            json.dump(hparams['encoder_dict'], f)
+
+    def train(self, dataset_path, output_path):
+        try:
+            with open(join(output_path, 'dataset.p'), mode='rb') as f:
+                _LOGGER.debug('Loading dataset from file')
+                dataset = pickle.load(f)
+        except OSError as e:
+            if e.errno == ENOENT:
+                _LOGGER.debug('Building dataset from file')
+                dataset = self.build_dataset(dataset_path)
+                with open(join(output_path, 'dataset.p'), mode='wb') as f:
+                    pickle.dump(dataset, f)
+            else:
+                raise
+
         training_params = {}
         for param in self._training_params:
             param_val = getattr(self, param)
@@ -353,3 +375,26 @@ class CallResponseModel:
             # TODO: build inference model
             CallResponseModel.inference_model(output_path, self.hparams)
             sys.exit(0)
+
+
+class EvalModel:
+    def __init__(self, builder_dir):
+
+        _LOGGER.debug('Loading model')
+        if tf.get_default_session() is not None:
+            raise ValueError('Detected an existing session.')
+
+        self.eval_session = tf.Session()
+        atexit.register(self.eval_session.close)
+        tf_loader.load(self.eval_session, [], builder_dir)
+        self.call = self.eval_session.graph.get_tensor_by_name('call:0')
+        self.response = self.eval_session.graph.get_tensor_by_name('response:0')
+
+        with open(join(builder_dir, 'encoder.json'), mode='r') as f:
+            encoder_dict = json.load(f)
+
+        self.encoder = encoder_from_dict(encoder_dict)
+        _LOGGER.debug('Model loaded')
+
+    def evaluate(self, encoding):
+        return self.eval_session.run(self.response, feed_dict={self.call: encoding})

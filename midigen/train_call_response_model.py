@@ -52,8 +52,7 @@ def main():
     }
 
     model = CallResponseModel(params)
-    dataset = model.build_dataset(expanduser(args.dataset_path))
-    model.train(dataset, expanduser(args.output_path))
+    model.train(expanduser(args.dataset_path), expanduser(args.output_path))
 
 
 if __name__ == '__main__':
