@@ -2,6 +2,7 @@ import argparse
 from os.path import expanduser, join
 import pickle
 import pretty_midi as pm
+import numpy as np
 from midigen.call_response_model import EvalModel
 
 
@@ -19,21 +20,29 @@ def main():
     with open(expanduser(args.dataset_path), mode='rb') as f:
         dataset = pickle.load(f)
 
-    validation_calls = dataset['calls'][dataset['validation_indices']]
+    validation_calls = dataset['calls'][:, dataset['validation_indices'], :]
     validation_responses = model.evaluate(validation_calls)
+
+    training_calls = dataset['calls'][:, dataset['training_indices'], :]
+    training_responses = model.evaluate(training_calls)
 
     call_program = pm.instrument_name_to_program('Acoustic Grand Piano')
     response_program = pm.instrument_name_to_program('Electric Grand Piano')
 
-    validation_midis = []
-    for example_n in range(validation_responses.shape[0]):
-        cur_call = validation_calls[example_n]
-        validation_midis.append(model.encoder.decode(cur_call, program=call_program))
-        cur_response = validation_responses[example_n]
-        validation_midis.append(model.encoder.decode(cur_response, program=response_program))
+    def build_midi(call, response):
+        midis = []
+        for example_n in range(call.shape[1]):
+            cur_call = call[:, example_n]
+            midis.append(model.encoder.decode(cur_call, program=call_program))
+            cur_response = response[:, example_n]
+            midis.append(model.encoder.decode(cur_response, program=response_program))
+        return concat(midis)
 
     validation_track_path = join(expanduser(args.output_path), 'validation.mid')
-    concat(validation_midis).write(validation_track_path)
+    build_midi(validation_calls, validation_responses).write(validation_track_path)
+
+    training_track_path = join(expanduser(args.output_path), 'training.mid')
+    build_midi(training_calls, training_responses).write(training_track_path)
 
 
 def concat(midis, min_len=None):

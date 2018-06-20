@@ -15,7 +15,9 @@ def encoder_from_dict(the_dict):
     type_name = the_dict['encoder_type']
     pruned = copy.deepcopy(the_dict)
     del pruned['encoder_type']
-    return getattr(sys.modules[__name__], type_name)(**pruned)
+    encoder = getattr(sys.modules[__name__], type_name)(**pruned)
+    assert isinstance(encoder, Encoder)
+    return encoder
 
 
 class Encoder(ABC):

@@ -41,6 +41,7 @@ setup(
         'console_scripts': [
             'crserver=midigen.call_response_server:main',
             'interface=midigen.rt_midi_interface:main',
-            'train_crmodel=midigen.train_call_response_model:main']
+            'train_crmodel=midigen.train_call_response_model:main',
+            'generate=midigen.generate:main']
     },
 )

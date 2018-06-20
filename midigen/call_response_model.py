@@ -107,8 +107,8 @@ class CallResponseModel:
         np.random.shuffle(indices)
 
         dataset = {
-            'calls': np.stack(calls),
-            'responses': np.stack(responses),
+            'calls': np.swapaxes(np.stack(calls), 0, 1),
+            'responses': np.swapaxes(np.stack(responses), 0, 1),
             'training_indices': indices[:num_training_examples],
             'validation_indices': indices[num_training_examples:]
         }
@@ -116,12 +116,16 @@ class CallResponseModel:
         return dataset
 
     def core_graph(self, inputs, target_response):
+        batch_size = tf.shape(inputs)[1]
+
         with tf.variable_scope('encoder', reuse=tf.AUTO_REUSE):
-            cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_code_size)
-            if self.keep_prob != 1 and self.keep_prob is not None:
-                cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.keep_prob)
-            enc_outputs, enc_state = tf.nn.dynamic_rnn(
-                cell, inputs, dtype=self.float_type)
+            if target_response is None:
+                enc_cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_code_size, name='lstm_cell')
+                enc_outputs, enc_state = tf.nn.dynamic_rnn(
+                    enc_cell, inputs, dtype=self.float_type, time_major=True)
+            else:
+                enc_cell = tf.contrib.rnn.LSTMBlockFusedCell(self.hidden_code_size)
+                enc_outputs, enc_state = enc_cell(inputs, dtype=self.tf_type)
 
         with tf.variable_scope('decoder', reuse=tf.AUTO_REUSE):
             de_embed_init = np.random.normal(
@@ -131,42 +135,63 @@ class CallResponseModel:
             de_embed_b = tf.Variable(np.zeros(self.encoder.encoding_channels + 1), dtype=self.tf_type,
                                      name='de_embed_b', trainable=True)
 
-            cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_code_size)
-            if self.keep_prob != 1 and self.keep_prob is not None:
-                cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.keep_prob)
+            if target_response is None:
+                dec_cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_code_size, name='rnn/lstm_cell')
 
-            # generate GO vector
-            batch_size = tf.shape(inputs)[0]
-            go_np = np.zeros(self.encoder.encoding_channels + 1)
-            go_np[-1] = 1
-            go_template = tf.constant(go_np[np.newaxis, :], dtype=self.tf_type)
-            go = tf.tile(go_template, [batch_size, 1])
-            h_first, c_first = cell(go, enc_state)
-            de_first = tf.add(tf.matmul(h_first, de_embed_w), de_embed_b, name='out0')
-            dec_outputs = [de_first]
-            dec_states = [c_first]
+                # generate GO vector
+                go_np = np.zeros(self.encoder.encoding_channels + 1)
+                go_np[-1] = 1
+                go_template = tf.constant(go_np[np.newaxis, :], dtype=self.tf_type)
+                go = tf.tile(go_template, [batch_size, 1])
+                h_first, state_first = dec_cell(go, enc_state)
 
-            for i in range(self.max_response_length - 1):
-                if target_response is None:
-                    prev_prob = tf.nn.softmax(dec_outputs[-1], dim=1)
-                    h_cur, state_cur = cell(prev_prob, dec_states[-1])
-                else:
-                    h_cur, state_cur = cell(target_response[:, i, :], dec_states[-1])
+                de_first = tf.add(tf.matmul(h_first, de_embed_w), de_embed_b, name='out0')
+                de_outputs = [de_first]
+                dec_outputs = [h_first]
+                dec_state = [state_first]
+                dec_c = [state_first.c]
+                dec_h = [state_first.h]
+                prob = [go]
+                for i in range(self.max_response_length - 1):
+                    prev_prob = tf.nn.softmax(de_outputs[-1], axis=1)
+                    h_cur, state_cur = dec_cell(prev_prob, dec_state[-1])
+                    dec_outputs.append(h_cur)
+                    de_cur = tf.add(tf.matmul(h_cur, de_embed_w), de_embed_b, name='out' + str(i + 1))
+                    de_outputs.append(de_cur)
+                    dec_state.append(state_cur)
+                    dec_c.append(state_cur.c)
+                    dec_h.append(state_cur.h)
+                    prob.append(prev_prob)
 
-                de_cur = tf.add(tf.matmul(h_cur, de_embed_w), de_embed_b, name='out' + str(i + 1))
-                dec_outputs.append(de_cur)
-                dec_states.append(state_cur)
-        dec_cat = tf.stack(dec_outputs, axis=1, name='response')
+                dec_outputs = tf.stack(dec_outputs)
+                prob = tf.stack(prob)
+            else:
+                dec_cell = tf.contrib.rnn.LSTMBlockFusedCell(self.hidden_code_size)
+                dec_outputs, dec_state = dec_cell(target_response, initial_state=enc_state, dtype=self.tf_type)
+                de_outputs = None
 
+        if target_response is None:
+            de_embedded = tf.stack(de_outputs)
+        else:
+            de_embedded = tf.tensordot(dec_outputs, de_embed_w, axes=[[2], [0]]) + de_embed_b
+            prob = de_embedded
+
+        go_dropped = tf.slice(de_embedded, [0, 0, 0], tf.shape(de_embedded) - [0, 0, 1], name='response')
         core_variables = [
-            'decoder/de_embed_w:0',
-            'decoder/de_embed_b:0',
-            'encoder/rnn/basic_lstm_cell/kernel:0',
-            'encoder/rnn/basic_lstm_cell/bias:0',
-            'decoder/basic_lstm_cell/kernel:0',
-            'decoder/basic_lstm_cell/bias:0']
+            de_embed_w.name,
+            de_embed_b.name,
+            enc_cell._kernel.name,
+            enc_cell._bias.name,
+            dec_cell._kernel.name,
+            dec_cell._bias.name]
 
-        return dec_cat, core_variables
+        intermediates = {
+            'enc_state': enc_state,
+            'de_embedded': de_embedded,
+            'dec_outputs': dec_outputs,
+            'prob': prob
+        }
+        return go_dropped, core_variables, intermediates
 
     @staticmethod
     def inference_model(model_path, hparams):
@@ -270,20 +295,24 @@ class CallResponseModel:
 
                 calls = tf.constant(dataset['calls'], dtype=self.tf_type)
 
-                responses_with_go = np.concatenate(
-                    (dataset['responses'],
-                     np.zeros((dataset['responses'].shape[0], dataset['responses'].shape[1], 1))),
-                    axis=2)
-                responses = tf.constant(responses_with_go, dtype=self.tf_type)
+                response_samples, num_responses, response_chans = dataset['responses'].shape
+                responses_with_go = np.empty((response_samples, num_responses, response_chans+1))
+                responses_with_go[0, :, :] = 0
+                responses_with_go[0, :, -1] = 1
+                responses_with_go[1:, :, :-1] = dataset['responses'][:1, :, :]
+
+                responses_with_go = tf.constant(responses_with_go, dtype=self.tf_type)
+                responses = tf.constant(dataset['responses'], dtype=self.tf_type)
 
                 learning_rate = tf.placeholder(dtype=self.tf_type, shape=[])
                 keep_prob = tf.placeholder(dtype=self.tf_type, shape=[])
 
                 batch_indices = tf.placeholder(dtype=tf.int32, shape=[self.batch_size])
-                batch_calls = tf.gather(calls, batch_indices, axis=0)
-                batch_responses = tf.gather(responses, batch_indices, axis=0)
+                batch_calls = tf.gather(calls, batch_indices, axis=1)
+                batch_responses = tf.gather(responses, batch_indices, axis=1)
+                batch_responses_with_go = tf.gather(responses_with_go, batch_indices, axis=1)
 
-                outputs, core_variables = self.core_graph(batch_calls, batch_responses)
+                outputs, core_variables, _ = self.core_graph(batch_calls, batch_responses_with_go)
 
                 core_variable_map = {}
                 for name in core_variables:
