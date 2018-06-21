@@ -31,6 +31,9 @@ def main():
         '--keep_prob', help='dropout keep probability', type=float, required=True)
     parser.add_argument(
         '--seed', help='RNG seed', type=int, required=True)
+    parser.add_argument(
+        '--reset_learning_rate', action='store_true', help='reset learning rate to initial value'
+    )
 
     args = parser.parse_args()
 
@@ -52,7 +55,7 @@ def main():
     }
 
     model = CallResponseModel(params)
-    model.train(expanduser(args.dataset_path), expanduser(args.output_path))
+    model.train(expanduser(args.dataset_path), expanduser(args.output_path), args.reset_learning_rate)
 
 
 if __name__ == '__main__':

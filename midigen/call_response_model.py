@@ -1,11 +1,13 @@
 from os.path import join
 from os import walk
+from os import mkdir
 import sys
 import shutil
 import logging
 import json
 import pickle
 import atexit
+from errno import EEXIST
 from errno import ENOENT
 import numpy as np
 import tensorflow as tf
@@ -15,6 +17,9 @@ import pretty_midi as pm
 from midigen.encode import encoder_from_dict
 
 _LOGGER = logging.getLogger('CallResponseModel')
+_LOSS_REGRESSION_MULTIPLIER = 2.0
+_STAGNATION_COUNT = 100000
+_LR_MULTIPLIER = 0.8
 
 
 class CallResponseModel:
@@ -256,7 +261,7 @@ class CallResponseModel:
         with open(join(model_path, 'inference_builder', 'encoder.json'), mode='w') as f:
             json.dump(hparams['encoder_dict'], f)
 
-    def train(self, dataset_path, output_path):
+    def train(self, dataset_path, output_path, reset_learning_rate):
         try:
             with open(join(output_path, 'dataset.p'), mode='rb') as f:
                 _LOGGER.debug('Loading dataset from file')
@@ -304,7 +309,12 @@ class CallResponseModel:
                 responses_with_go = tf.constant(responses_with_go, dtype=self.tf_type)
                 responses = tf.constant(dataset['responses'], dtype=self.tf_type)
 
-                learning_rate = tf.placeholder(dtype=self.tf_type, shape=[])
+                learning_rate = tf.Variable(
+                    self.learning_rate, dtype=self.tf_type, trainable=False, name='learning_rate')
+                learning_rate_decrease_op = tf.assign(
+                    learning_rate,
+                    tf.multiply(tf.cast(_LR_MULTIPLIER, self.tf_type), learning_rate))
+
                 keep_prob = tf.placeholder(dtype=self.tf_type, shape=[])
 
                 batch_indices = tf.placeholder(dtype=tf.int32, shape=[self.batch_size])
@@ -345,15 +355,56 @@ class CallResponseModel:
                 # valid_merged = tf.summary.scalar('validation_cross_entropy', total_cross_entropy)
                 train_merged = tf.summary.scalar('training_cross_entropy', total_cross_entropy)
 
+                min_loss = tf.Variable(np.inf, name='min_loss', trainable=False, dtype=self.tf_type)
+                min_loss_epoch = tf.Variable(0, name='min_loss_epoch', trainable=False, dtype=tf.int64)
+                update_cond = total_cross_entropy < min_loss
+
+                new_min_loss = tf.cond(
+                    update_cond,
+                    lambda: total_cross_entropy,
+                    lambda: min_loss
+                )
+
+                min_loss_updated = tf.cond(
+                    update_cond,
+                    lambda: 1,
+                    lambda: 0
+                )
+
+                new_min_loss_epoch = tf.cond(
+                    update_cond,
+                    lambda: epoch,
+                    lambda: min_loss_epoch
+                )
+
+                update_min_loss = tf.assign(min_loss, new_min_loss)
+                update_min_loss_epoch = tf.assign(min_loss_epoch, new_min_loss_epoch)
+
                 hyper_parameter_summary = tf.summary.merge([
                     tf.summary.scalar('learning_rate', learning_rate),
-                    tf.summary.scalar('keep_prob', keep_prob)
+                    tf.summary.scalar('keep_prob', keep_prob),
+                    tf.summary.scalar('min_loss', min_loss),
+                    tf.summary.scalar('min_loss_epoch', min_loss_epoch)
                 ])
 
                 writer = tf.summary.FileWriter(output_path, graph=sess.graph)
-
-                saver = tf.train.Saver(tf.trainable_variables().append(epoch))
+                aux_variables = [epoch, min_loss, min_loss_epoch, learning_rate]
+                saver = tf.train.Saver(tf.trainable_variables().extend(aux_variables))
                 checkpoint = tf.train.latest_checkpoint(output_path)
+
+                rewind_path = join(output_path, 'regression')
+                rewind_saver = tf.train.Saver(tf.trainable_variables().extend(aux_variables))
+                try:
+                    mkdir(rewind_path)
+                except OSError as e:
+                    if e.errno == EEXIST:
+                        pass
+                    else:
+                        raise
+
+                if reset_learning_rate:
+                    _LOGGER.info(f'Reseting learning rate to {self.learning_rate}')
+                    learning_rate.load(self.learning_rate)
 
                 if checkpoint is None:
                     _LOGGER.info(f'Initializing model in {output_path}')
@@ -369,39 +420,68 @@ class CallResponseModel:
                     epoch_n, = sess.run([epoch])
 
                     if epoch_n % 100 == 0:
-                        feed = {learning_rate: self.learning_rate,
-                                keep_prob: self.keep_prob}
+                        feed = {keep_prob: 1}
                         cur_hp_summary, = sess.run([hyper_parameter_summary], feed_dict=feed)
                         writer.add_summary(cur_hp_summary, global_step=epoch_n)
 
-                        # TODO: get batch_indices to take an arbitrary number of indices instead of fixed at batch size
-                        # feed = {batch_indices: dataset['validation_indices'], keep_prob: 1}
-                        # summary, validation_entropy = sess.run([valid_merged, total_cross_entropy], feed_dict=feed)
-                        # writer.add_summary(summary, global_step=epoch_n)
-
                         feed = {batch_indices: dataset['training_indices'], keep_prob: 1}
-                        summary, train_entropy = sess.run([train_merged, total_cross_entropy], feed_dict=feed)
+                        summary, train_entropy, min_updated, min_loss_value, min_loss_epoch_value = sess.run([
+                            train_merged,
+                            total_cross_entropy,
+                            min_loss_updated,
+                            update_min_loss,
+                            update_min_loss_epoch],
+                            feed_dict=feed)
                         writer.add_summary(summary, global_step=epoch_n)
+
+                        cur_learning_rate = sess.run(learning_rate)
+
                         _LOGGER.info(f'+++++++++++++++++')
-                        _LOGGER.info(f'learning_rate: {self.learning_rate}')
+                        _LOGGER.info(f'learning_rate: {cur_learning_rate}')
                         _LOGGER.info(f'epoch: {epoch_n}')
                         _LOGGER.info(f'training entropy: {train_entropy}')
+                        _LOGGER.info(f'minimum loss: {min_loss_value}')
+                        _LOGGER.info(f'minimum loss epoch: {min_loss_epoch_value}')
 
-                        # TODO: check for reversions and rewind
-                        saver.save(sess, join(output_path, 'checkpoint'), write_meta_graph=False, global_step=epoch)
+                        if min_updated:
+                            rewind_saver.save(sess, join(rewind_path, 'checkpoint'),
+                                              global_step=epoch, write_meta_graph=False)
+                            _LOGGER.info(
+                                f'New minimum validation loss of '
+                                f'{min_loss_value} at epoch {min_loss_epoch_value}')
+
+                        if epoch_n > 0:
+                            if train_entropy > _LOSS_REGRESSION_MULTIPLIER*min_loss_value:
+                                rewind_checkpoint = tf.train.latest_checkpoint(rewind_path)
+                                _LOGGER.info(f'\nLoss regression. Restoring from {rewind_checkpoint}.')
+                                rewind_saver.restore(sess, rewind_checkpoint)
+                                learning_rate.load(cur_learning_rate)
+                                _LOGGER.info(f'restored LR: {sess.run(learning_rate)}')
+                                sess.run([learning_rate_decrease_op])
+                                _LOGGER.info(f'updated LR: {sess.run(learning_rate)}')
+                            elif epoch_n - min_loss_epoch_value > _STAGNATION_COUNT:
+                                rewind_checkpoint = tf.train.latest_checkpoint(rewind_path)
+                                _LOGGER.info(f'\nLoss stagnation. Restoring from {rewind_checkpoint}.')
+                                rewind_saver.restore(sess, rewind_checkpoint)
+                                learning_rate.load(cur_learning_rate)
+                                _LOGGER.info(f'restored LR: {sess.run(learning_rate)}')
+                                sess.run([learning_rate_decrease_op])
+                                _LOGGER.info(f'updated LR: {sess.run(learning_rate)}')
+                            else:
+                                saver.save(
+                                    sess, join(output_path, 'checkpoint'),
+                                    write_meta_graph=False, global_step=epoch)
 
                     for batch_n in range(num_batches):
                         feed = {
                             batch_indices:
                                 dataset['training_indices'][batch_n*self.batch_size:(batch_n+1)*self.batch_size],
-                            learning_rate: self.learning_rate,
                             keep_prob: self.keep_prob
                         }
                         sess.run(adam_step, feed_dict=feed)
 
                     sess.run([increment_epoch])
         except KeyboardInterrupt:
-            # TODO: build inference model
             CallResponseModel.inference_model(output_path, self.hparams)
             sys.exit(0)
 
