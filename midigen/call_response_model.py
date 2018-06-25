@@ -157,16 +157,29 @@ class CallResponseModel:
                 dec_c = [state_first.c]
                 dec_h = [state_first.h]
                 prob = [go]
+
                 for i in range(self.max_response_length - 1):
-                    prev_prob = tf.nn.softmax(de_outputs[-1], axis=1)
-                    h_cur, state_cur = dec_cell(prev_prob, dec_state[-1])
+                    # prev_prob = tf.nn.softmax(de_outputs[-1], axis=1)
+                    rng = tf.cast(tf.range(batch_size), dtype=tf.int64)
+                    pos = tf.argmax(de_outputs[-1], axis=1)
+                    indices = tf.stack([rng, pos], axis=1)
+                    shape = tf.cast(tf.stack([batch_size, self.encoder.encoding_channels + 1]), dtype=tf.int64)
+
+                    values = tf.ones(tf.reshape(batch_size, [1]), dtype=self.tf_type)
+                    prev_prob_sharp = tf.scatter_nd(
+                        indices,
+                        values,
+                        shape
+                    )
+
+                    h_cur, state_cur = dec_cell(prev_prob_sharp, dec_state[-1])
                     dec_outputs.append(h_cur)
                     de_cur = tf.add(tf.matmul(h_cur, de_embed_w), de_embed_b, name='out' + str(i + 1))
                     de_outputs.append(de_cur)
                     dec_state.append(state_cur)
                     dec_c.append(state_cur.c)
                     dec_h.append(state_cur.h)
-                    prob.append(prev_prob)
+                    prob.append(prev_prob_sharp)
 
                 dec_outputs = tf.stack(dec_outputs)
                 prob = tf.stack(prob)
@@ -402,10 +415,6 @@ class CallResponseModel:
                     else:
                         raise
 
-                if reset_learning_rate:
-                    _LOGGER.info(f'Reseting learning rate to {self.learning_rate}')
-                    learning_rate.load(self.learning_rate)
-
                 if checkpoint is None:
                     _LOGGER.info(f'Initializing model in {output_path}')
                     initializer = tf.global_variables_initializer()
@@ -415,6 +424,10 @@ class CallResponseModel:
                     _LOGGER.info(f'Restoring model from {output_path}')
 
                     saver.restore(sess, checkpoint)
+
+                if reset_learning_rate:
+                    _LOGGER.info(f'Reseting learning rate to {self.learning_rate}')
+                    learning_rate.load(self.learning_rate)
 
                 while True:
                     epoch_n, = sess.run([epoch])

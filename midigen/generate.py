@@ -14,6 +14,7 @@ def main():
         'model_path', help='path to model builder')
     parser.add_argument(
         'output_path', help='path to output the results')
+    parser.add_argument('min_len', help='minimum length', type=float)
 
     args = parser.parse_args()
     model = EvalModel(expanduser(args.model_path))
@@ -36,7 +37,10 @@ def main():
             midis.append(model.encoder.decode(cur_call, program=call_program))
             cur_response = response[:, example_n]
             midis.append(model.encoder.decode(cur_response, program=response_program))
-        return concat(midis)
+        return concat(midis, args.min_len)
+
+    full_set_path = join(expanduser(args.output_path), 'full_set.mid')
+    build_midi(dataset['calls'], dataset['responses']).write(full_set_path)
 
     validation_track_path = join(expanduser(args.output_path), 'validation.mid')
     build_midi(validation_calls, validation_responses).write(validation_track_path)
