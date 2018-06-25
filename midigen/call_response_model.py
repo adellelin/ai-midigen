@@ -261,6 +261,7 @@ class CallResponseModel:
                 batch_calls = tf.gather(calls, batch_indices, axis=0)
                 batch_responses = tf.gather(responses, batch_indices, axis=0)
 
+                # model graph gets built
                 outputs, core_variables = self.core_graph(batch_calls, batch_responses)
 
                 core_variable_map = {}
@@ -271,6 +272,7 @@ class CallResponseModel:
                 with open(join(output_path, 'variables.json'), mode='w') as f:
                     json.dump(core_variable_map, f)
 
+                # similarity of output distribution and expected distribution
                 with tf.variable_scope('loss'):
                     cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(
                         labels=batch_responses, logits=outputs, dim=2)
