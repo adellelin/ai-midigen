@@ -201,11 +201,12 @@ class MelodyEncoder(Encoder):
         inst = midi.instruments[instrument_index]
         assert not inst.is_drum
 
-        us = 10
+        us = 10  # us is the up-sampling factor
         steps_per_s = us*self.time_resolution
         map_steps = int(self.total_time*steps_per_s)
         note_map = np.zeros((self.num_symbols, map_steps))
 
+        # go through all notes, filters out notes that aren't within the allowed pitches
         for note in inst.notes:
             if note.pitch not in self.allowed_pitches:
                 logger.warn('ignoring unsupported pitch = ' + str(note.pitch))
@@ -219,6 +220,8 @@ class MelodyEncoder(Encoder):
 
             note_map[symbol_n, start_n:end_n] = 1
 
+        # Encodes notes according to specified time resolution,
+        # Note choice when multiple notes - keep the longest held note
         ave_width = us // 2 + 1
         ave = np.ones(ave_width)/float(ave_width)
         note_map = convolve1d(note_map, ave, axis=1)
@@ -233,6 +236,7 @@ class MelodyEncoder(Encoder):
                 accum += note_map[:, step_n]
                 symbols[step_n] = np.argmax(accum)
         encoding = np.ones(self.num_time_steps, dtype=np.uint8)
+        # downsample to resolution
         encoding[:] = symbols[::us]
         held_key = None
         for step_n, cur_key in enumerate(encoding):
