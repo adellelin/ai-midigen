@@ -15,6 +15,8 @@ def main():
         'output_path', help='path to output the results')
 
     args = parser.parse_args()
+    # create the model, then load the validation set created at training side
+    # run validation through model
     model = EvalModel(expanduser(args.model_path))
     with open(expanduser(args.dataset_path), mode='rb') as f:
         dataset = pickle.load(f)
