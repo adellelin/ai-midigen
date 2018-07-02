@@ -1,0 +1,1 @@
+{"allowed_pitches": [42, 43, 46, 47, 48, 49, 51, 53, 54, 55, 56, 57, 58, 60, 62, 63, 65, 66, 67, 68, 69, 70, 72, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87], "time_resolution": 8, "num_bars": 4, "bar_time": 2, "encoder_type": "MelodyEncoder"}
