@@ -123,11 +123,11 @@ class CallResponseModel:
     def core_graph(self, inputs, target_response):
         batch_size = tf.shape(inputs)[1]
 
-        with tf.variable_scope('encoder', reuse=tf.AUTO_REUSE):
+        with tf.variable_scope('encoder', reuse=tf.AUTO_REUSE) as scope:
             if target_response is None:
-                enc_cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_code_size, name='lstm_cell')
+                enc_cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_code_size, name='lstm_fused_cell')
                 enc_outputs, enc_state = tf.nn.dynamic_rnn(
-                    enc_cell, inputs, dtype=self.float_type, time_major=True)
+                    enc_cell, inputs, dtype=self.float_type, time_major=True, scope=scope)
             else:
                 enc_cell = tf.contrib.rnn.LSTMBlockFusedCell(self.hidden_code_size)
                 enc_outputs, enc_state = enc_cell(inputs, dtype=self.tf_type)
@@ -141,7 +141,7 @@ class CallResponseModel:
                                      name='de_embed_b', trainable=True)
 
             if target_response is None:
-                dec_cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_code_size, name='rnn/lstm_cell')
+                dec_cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_code_size, name='lstm_fused_cell')
 
                 # generate GO vector
                 go_np = np.zeros(self.encoder.encoding_channels + 1)
@@ -238,7 +238,7 @@ class CallResponseModel:
                 variables_to_load.append(ref)
 
             saver = tf.train.Saver(variables_to_load)
-            cp = tf.train.latest_checkpoint(model_path)
+            cp = tf.train.latest_checkpoint(join(model_path, 'regression'))
             saver.restore(sess, cp)
 
             variable_values = {}

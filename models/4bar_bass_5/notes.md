@@ -11,4 +11,6 @@ encoder contents:
 {"allowed_pitches": [27, 29, 31, 32, 34, 36, 38, 39, 41, 43, 44, 46, 48, 51, 53, 55, 56, 58, 63, 72, 74, 68, 60, 62, 54, 65, 79, 75, 54, 67, 64, 69, 70, 79],
 "time_resolution": 8, "num_bars": 4, "bar_time": 2, "encoder_type": "MelodyEncoder"}
 
+Trained for 200k epochs
+
 Tried training with a 16 Hz encoder - lots of empty responses

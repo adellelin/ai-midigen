@@ -31,7 +31,7 @@ setup(
     ],
     packages=find_packages(),
     install_requires=[
-        'pretty_midi', 'flask', 'flask-restful', 'tensorflow==1.5',
+        'pretty_midi', 'flask', 'flask-restful', 'tensorflow',
         'numpy', 'mido', 'requests', 'appdirs', 'python-rtmidi', 'pykka', 'scipy',
         'python-osc'],
 
