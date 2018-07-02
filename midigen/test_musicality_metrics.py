@@ -58,4 +58,7 @@ class TestEncoder(TestCase):
 
             print('DEBUG: \ncall:', call_name, ':', call_count, '\nresp:', response_name, ':', response_count)
 
+            for note in call.instruments[0].notes:
+                print('DEBUG: call:', call_name, ':', note)
+
 
