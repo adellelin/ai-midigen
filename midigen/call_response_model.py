@@ -501,6 +501,7 @@ class CallResponseModel:
             sys.exit(0)
 
 
+# load model, create tensorflow session and then call eval() on eval model
 class EvalModel:
     def __init__(self, builder_dir):
 

@@ -17,6 +17,8 @@ def main():
     parser.add_argument('min_len', help='minimum length', type=float)
 
     args = parser.parse_args()
+    # create the model, then load the validation set created at training side
+    # run validation through model
     model = EvalModel(expanduser(args.model_path))
     with open(expanduser(args.dataset_path), mode='rb') as f:
         dataset = pickle.load(f)

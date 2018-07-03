@@ -72,6 +72,8 @@ def main():
     api = Api(app)
 
     class TFGen(Resource):
+        # create prettymidi object, encodes it, evaluate it, decode output distribution into midi object
+        # rest of it packs into format that http server
         def post(self):
             def error_response(e):
                 logger.exception(e)
@@ -97,12 +99,14 @@ def main():
                 return error_response(err)
 
             if not args.mvncs:
+                # send encoding into model
                 outputs_cat = model.evaluate(call_encoded)[0]
             else:
                 graph.LoadTensor(call_encoded.astype(np.float16), '')
                 outputs_cur, _ = graph.GetResult()
                 outputs_cat = np.array(outputs_cur, dtype=np.float32)
 
+            # decode the response output
             response_midi = encoder.decode(outputs_cat)
 
             sio = BytesIO()
@@ -111,6 +115,7 @@ def main():
             a_b64 = base64.b64encode(a).decode()
             logger.debug('generated midi binary: ' + a_b64)
             if args.verbose_response:
+                print("outputs", outputs_cat.shape)
                 output_prob = outputs_cat[:, 0, :]
                 scale = 100.0
                 output_prob_norm = np.exp(output_prob/scale)/np.sum(np.exp(output_prob/scale), axis=1)[:, np.newaxis]
