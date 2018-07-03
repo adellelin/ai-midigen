@@ -207,7 +207,8 @@ class MelodyEncoder(Encoder):
         steps_per_s = us*self.time_resolution
         map_steps = int(self.total_time*steps_per_s)
         note_map = np.zeros((self.num_symbols, map_steps))
-
+        release_map = np.zeros((self.num_symbols, self.num_time_steps))
+        hit_map = np.zeros((self.num_symbols, self.num_time_steps))
         # go through all notes, filters out notes that aren't within the allowed pitches
         for note in inst.notes:
             if note.pitch not in self.allowed_pitches:
@@ -221,6 +222,12 @@ class MelodyEncoder(Encoder):
             end_n = min(int(note.end*steps_per_s), map_steps - 1)
 
             note_map[symbol_n, start_n:end_n] = 1
+
+            release_n = min(int(note.end * self.time_resolution) + 1, self.num_time_steps - 1)
+            release_map[symbol_n, release_n] = 1.0
+            hit_n = min(int(note.start * self.time_resolution), self.num_time_steps - 1)
+            hit_map[symbol_n, hit_n] = 1.0
+        release_hit_map = np.logical_and(release_map, hit_map)
 
         # Encodes notes according to specified time resolution,
         # Note choice when multiple notes - keep the longest held note
@@ -237,13 +244,17 @@ class MelodyEncoder(Encoder):
                 accum *= note_map[:, step_n] > 0
                 accum += note_map[:, step_n]
                 symbols[step_n] = np.argmax(accum)
+
         encoding = np.ones(self.num_time_steps, dtype=np.uint8)
         # downsample to resolution
         encoding[:] = symbols[::us]
         held_key = None
         for step_n, cur_key in enumerate(encoding):
             if cur_key > 1 and cur_key == held_key:
-                encoding[step_n] = self.hold_note
+                if release_hit_map[cur_key, step_n]:
+                    encoding[step_n] = cur_key
+                else:
+                    encoding[step_n] = self.hold_note
             held_key = cur_key
 
         ohcs = np.zeros((self.num_time_steps, self.num_symbols), dtype=np.float32)

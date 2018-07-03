@@ -19,7 +19,22 @@ class TestEncoder(TestCase):
                 continue
 
             midi_track = path.join(self.data_dir, fileList)
-            self.test_midis.append(pm.PrettyMIDI(midi_track))
+            ref_pm = pm.PrettyMIDI(midi_track)
+            # Filter out notes shorter than 20 ms.
+            # TODO: Figure out where these notes come from - are they an artifact from pretty midi?
+            filtered_pm = pm.PrettyMIDI()
+            inst = pm.Instrument(0)
+            filter_criteria = 0.02
+            for ref_note in ref_pm.instruments[0].notes:
+                if ref_note.end-ref_note.start > filter_criteria:
+                    inst.notes.append(
+                        pm.Note(velocity=ref_note.velocity,
+                                pitch=ref_note.pitch,
+                                start=ref_note.start,
+                                end=ref_note.end))
+            filtered_pm.instruments.append(inst)
+
+            self.test_midis.append(filtered_pm)
 
         # self.allowed_pitches = [55, 58, 60, 63, 65, 66, 67, 70, 72, 75, 77, 78, 79, 82, 84]
         self.allowed_pitches = [29, 31, 34, 36, 42, 43, 46, 47, 48, 49, 51, 53, 54, 55, 56, 57, 58, 60, 62, 63, 65, 66,
