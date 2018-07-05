@@ -279,7 +279,7 @@ def main():
     play_start_time = 0
     is_visualizing = False
 
-    # set up encoder 
+    # set up encoder
     with open(join(args.json), mode='r') as f:
         #encoder = MelodyEncoder.from_json(f.read())
         encoder = json.load(f)
