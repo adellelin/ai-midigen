@@ -1,9 +1,11 @@
 import argparse
 from os.path import expanduser, join
+from os import walk
 import pickle
 import pretty_midi as pm
 import numpy as np
 from midigen.call_response_model import EvalModel, CallResponseModel
+from midigen.encode import MelodyEncoder
 
 
 def main():
@@ -20,13 +22,19 @@ def main():
     # create the model, then load the validation set created at training side
     # run validation through model
     model = EvalModel(expanduser(args.model_path))
-    with open(expanduser(args.dataset_path), mode='rb') as f:
-        dataset = pickle.load(f)
 
-    validation_calls = dataset['calls'][:, dataset['validation_indices'], :]
-    validation_responses = model.evaluate(validation_calls)
+
+    # build dataset
+    print(args.dataset_path)
+    dataset = build_dataset(args.dataset_path, model)
+
+    #validation_calls = dataset['calls'][:, dataset['validation_indices'], :]
+    #validation_responses = model.evaluate(validation_calls)
+
+    print( dataset['training_indices'])
 
     training_calls = dataset['calls'][:, dataset['training_indices'], :]
+    #print("training calls", training_calls)
     training_responses = model.evaluate(training_calls)
 
     call_program = pm.instrument_name_to_program('Acoustic Grand Piano')
@@ -41,14 +49,15 @@ def main():
             midis.append(model.encoder.decode(cur_response, program=response_program))
         return concat(midis, args.min_len)
 
-    #full_set_path = join(expanduser(args.output_path), 'full_set.mid')
-    #build_midi(dataset['calls'], dataset['responses']).write(full_set_path)
+    full_set_path = join(expanduser(args.output_path), 'full_set.mid')
+    build_midi(dataset['calls'], dataset['responses']).write(full_set_path)
 
     #validation_track_path = join(expanduser(args.output_path), 'validation.mid')
     #build_midi(validation_calls, validation_responses).write(validation_track_path)
 
-    #training_track_path = join(expanduser(args.output_path), 'training.mid')
-    #build_midi(training_calls, training_responses).write(training_track_path)
+    training_track_path = join(expanduser(args.output_path), 'training.mid')
+    build_midi(training_calls, training_responses).write(training_track_path)
+
 
 
 def concat(midis, min_len=None):
@@ -86,6 +95,69 @@ def concat(midis, min_len=None):
         midi.instruments.append(new_inst)
 
     return midi
+
+
+def build_dataset(data_dir, model):
+
+    np.random.seed(1)
+
+    calls = []
+    responses = []
+
+    for dirName, subdirList, fileList in walk(data_dir):
+        cur_cr = {}
+        for fname in fileList:
+            if fname.endswith('.mid') and not fname[0] == '.':
+                try:
+                    num = int(fname.replace('.mid', '').replace(' ', '_').split('_')[-1])
+                except ValueError:
+                    print(f'file name does not end with integer {fname}')
+                    continue
+
+                full_path = join(dirName, fname)
+                try:
+                    midi = pm.PrettyMIDI(full_path)
+                    assert len(midi.instruments[0].notes) > 3
+                    cur_cr[num] = model.encoder.encode(midi, instrument_index=0)
+                    #print("encode", cur_cr[num])
+                except (AssertionError, IOError, KeyError):
+                    print(f'Could not add midi file {join(dirName, fname)}.')
+
+        for k in cur_cr.keys():
+            if k % 2 == 1:
+                try:
+                    cur_call = cur_cr[k]
+                    cur_response = cur_cr[k + 1]
+                    responses.append(cur_response)
+                    calls.append(cur_call)
+                    #print("calls", calls)
+                except KeyError:
+                    print(f'Could not add index {k} from {dirName} because '
+                                    f'it does not have a valid call/response.')
+
+    print(f'building dataset from {data_dir}')
+
+    call_len = calls[0].shape[0]
+    print("len", call_len)
+    for call, response in zip(calls, responses):
+        assert call.shape[0] == call_len
+        assert response.shape[0] == call_len
+
+    num_examples = len(calls)
+    print(num_examples)
+    validation_ratio = 0  # use all midi's for evaluation
+    num_training_examples = int(num_examples*(1.0-validation_ratio))
+    indices = np.arange(num_examples, dtype=np.int32)
+    #np.random.shuffle(indices)
+
+    dataset = {
+        'calls': np.swapaxes(np.stack(calls), 0, 1),
+        'responses': np.swapaxes(np.stack(responses), 0, 1),
+        'training_indices': indices[:num_training_examples],
+        'validation_indices': indices[num_training_examples:]
+    }
+
+    return dataset
 
 
 if __name__ == '__main__':
