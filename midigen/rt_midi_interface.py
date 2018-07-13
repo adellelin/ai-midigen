@@ -31,7 +31,7 @@ from pythonosc import osc_bundle_builder
 from pythonosc import udp_client
 
 # define constants
-_bars_per_call = 4
+_bars_per_call = 2
 _seconds_per_bar = 2
 _seconds_per_call = _bars_per_call * _seconds_per_bar
 
@@ -561,6 +561,8 @@ def main():
                     pass
 
         elif msg.type == 'control_change' and msg.control == 21 and msg.value == 5:
+            # true if call bars is at the call bar number - 1, changes from user interface
+            # and do the post at every bars_per_call
             trigger_generation = call_bars - 1 <= bar_count < 2*call_bars - 1 and \
                                  bar_count % _bars_per_call == _bars_per_call - 1
             if not trigger_generation:
@@ -594,7 +596,6 @@ def main():
             else:
                 logger.info('call number ' + str(call_number) +' generation triggered '
                             + str(_seconds_per_bar - generation_delta) + ' early')
-
                 midi = pm.PrettyMIDI()
                 midi.instruments.append(inst)
                 actor.tell({'command': 'generate', 'midi': midi, 'inport':in_port,
