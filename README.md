@@ -65,11 +65,12 @@ done with curl as follows:
 curl --data-binary "@example_call.mid" http://localhost:5000/tfgen > ~/example_response.mid
 ```
 
+
 ### interface
 To do live generation, start an interface which interacts with max.
 The URL argument is the one the crserver is set up to listen at
 
-``` bash
+``` 
 source activate midigen-env
 interface http://127.0.0.1:5000/tfgen
 ```
@@ -84,6 +85,42 @@ Open the ableton project which should be installed to:
 ```
 .../miniconda3/envs/midigen-env/midigen/ableton/midigen.als
 ```
+
+
+
+### training
+To generate a model of your own data, start a training and watch it for a long time.
+
+create a directory for the trained model and checkpoint files : **TRAINING_OUT**
+
+pull all your data or our dataset into a reasonable place : **TRAINING_DATA/BASS**
+
+create a encoder.json (or use one for our \models) for all the training parameters: **TRAINING_DATA/BASS/encoder.json**
+
+```
+{"allowed_pitches": [27, 29, 31, 32, 34, 36, 38, 39, 41, 43, 44, 46, 48, 51, 53, 55, 56, 58, 63, 72, 74, 68, 60, 62, 54, 65, 79, 75, 54, 67, 64, 69, 70, 79], "time_resolution": 8, "num_bars": 4, "bar_time": 2, "encoder_type": "MelodyEncoder"}
+```
+
+
+kick-off a training like so, if you've used the paths above:
+
+
+```
+train_crmodel TRAINING_DATA/BASS/  TRAINING_OUT/ TRAINING_DATA/BASS/encoder.json --hidden_code_size 50 --max_response_length 64 --float_type float32 --batch_size 247 --validation_ratio 0.05 --gradient_clip 5 --learning_rate 1e-3 --keep_prob 1 --seed 1
+```
+
+### generate
+
+
+there is a process for generating early results during training. the generate scripts points to your **TRAINING_OUT** .  you'll need to ctrl-c out of your train_crmodel. this will trigger some checkout files and a put the best model into **TRAINING_OUT/inference_builder**
+
+```
+generate TRAINING_OUT/dataset.p TRAINING_OUT/inference_builder TRAINING_OUT
+```
+
+
+
+
 
 ### Release process
 
