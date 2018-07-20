@@ -109,6 +109,15 @@ kick-off a training like so, if you've used the paths above:
 train_crmodel TRAINING_DATA/BASS/  TRAINING_OUT/ TRAINING_DATA/BASS/encoder.json --hidden_code_size 50 --max_response_length 64 --float_type float32 --batch_size 247 --validation_ratio 0.05 --gradient_clip 5 --learning_rate 1e-3 --keep_prob 1 --seed 1
 ```
 
+## tensorboard
+To view tensorboard graphs, run the following command and point to the training_out folder:
+
+```
+tensorboard --logdir=path/to/TRAINING_OUT/
+```
+
+Then go to ```localhost:6006``` in a web browser
+
 ### generate
 
 
