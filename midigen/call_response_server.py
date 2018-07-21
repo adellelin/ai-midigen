@@ -36,7 +36,7 @@ def main():
         exit(1)
 
     logger.debug('loading encoder')
-    with open(join(args.model_dir, 'encoder.json'), mode='r') as f:
+    with open(join(expanduser(args.model_dir), 'encoder.json'), mode='r') as f:
         encoder = encoder_from_dict(json.load(f))
 
     # Fire up the tensorflow session and recombobulate the generation graph
@@ -133,7 +133,7 @@ def main():
 
     api.add_resource(TFGen, '/tfgen')
 
-    app.run(port=args.port)
+    app.run(port=args.port, host='0.0.0.0')
 
 
 if __name__ == '__main__':

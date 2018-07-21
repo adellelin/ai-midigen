@@ -1,0 +1,12 @@
+flask
+tensorflow
+numpy
+requests
+appdirs
+scipy
+mido
+python-osc
+python-rtmidi
+pykka
+pretty_midi
+flask-restful
