@@ -25,6 +25,7 @@ def main():
     parser = argparse.ArgumentParser(description='Launch generation server.')
     parser.add_argument('model_dir', help='exported model directory')
     parser.add_argument('--port', default=5000, help='http server port', type=int)
+    parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--verbose_response', action='store_true')
     parser.add_argument('--mvncs', action='store_true', help='use MvNCS for model backend')
     args = parser.parse_args()
@@ -133,7 +134,7 @@ def main():
 
     api.add_resource(TFGen, '/tfgen')
 
-    app.run(port=args.port, host='0.0.0.0')
+    app.run(port=args.port, host=args.host)
 
 
 if __name__ == '__main__':
