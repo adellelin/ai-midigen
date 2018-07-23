@@ -153,3 +153,44 @@ The wheel file should be output to:
 
 To install the wheel on a target system see
 'upgrade installation section above'
+
+## Docker
+
+### building docker container
+
+```
+cd /path/to/ai-midigen
+docker build -f docker/cpu/Dockerfile . -t midigen
+```
+
+### using docker container
+
+#### running a training job
+
+```
+docker run -it --rm\
+    -v $HOME"/ai_music:/shared" \
+    -e ASUSER=`id -u` \
+    midigen \
+    'train_crmodel \
+        /shared/data/4bar_bass_rock \
+        /shared/training/4bar_bass_6 \
+        /shared/data/4bar_bass_rock/encoder.json \
+        --hidden_code_size 50 \
+        --max_response_length 64 \
+        --float_type float32 \
+        --batch_size 490 \
+        --validation_ratio 0.05 \
+        --gradient_clip 5 \
+        --learning_rate 1e-3 \
+        --keep_prob 1 \
+        --seed 1'
+```
+
+#### running tensorboard
+
+```
+docker run -it -v /path/to/logdir:/shared -p 6006:6006 midigen tensorboard --logdir /shared --host 0.0.0.0
+```
+
+then navigate to localhost:6006 with a browser on the host

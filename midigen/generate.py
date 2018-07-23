@@ -1,8 +1,9 @@
 import argparse
 from os.path import expanduser, join
+from os import mkdir
+from errno import EEXIST
 import pickle
 import pretty_midi as pm
-import numpy as np
 from midigen.call_response_model import EvalModel
 
 
@@ -17,6 +18,16 @@ def main():
     parser.add_argument('min_len', help='minimum length', type=float)
 
     args = parser.parse_args()
+
+    output_path = expanduser(args.output_path)
+    try:
+        mkdir(output_path)
+    except OSError as e:
+        if e.errno == EEXIST:
+            pass
+        else:
+            raise
+
     # create the model, then load the validation set created at training side
     # run validation through model
     model = EvalModel(expanduser(args.model_path))
@@ -41,14 +52,24 @@ def main():
             midis.append(model.encoder.decode(cur_response, program=response_program))
         return concat(midis, args.min_len)
 
-    full_set_path = join(expanduser(args.output_path), 'full_set.mid')
+    full_set_path = join(output_path, 'full_set.mid')
     build_midi(dataset['calls'], dataset['responses']).write(full_set_path)
 
-    validation_track_path = join(expanduser(args.output_path), 'validation.mid')
+    validation_track_path = join(output_path, 'validation.mid')
     build_midi(validation_calls, validation_responses).write(validation_track_path)
 
-    training_track_path = join(expanduser(args.output_path), 'training.mid')
+    training_track_path = join(output_path, 'training.mid')
     build_midi(training_calls, training_responses).write(training_track_path)
+
+    try:
+        call_fnames = dataset['call_fnames']
+    except KeyError:
+        pass
+    else:
+        with open(join(output_path, 'valid_call_fnames.csv'), mode='w') as f:
+            for idx in dataset['validation_indices']:
+                fname = call_fnames[idx]
+                f.write(fname+'\n')
 
 
 def concat(midis, min_len=None):

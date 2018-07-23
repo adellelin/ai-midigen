@@ -68,7 +68,9 @@ class CallResponseModel:
         np.random.seed(self.seed)
 
         calls = []
+        call_fnames = []
         responses = []
+        response_fnames = []
 
         for dirName, subdirList, fileList in walk(data_dir):
             cur_cr = {}
@@ -84,17 +86,19 @@ class CallResponseModel:
                     try:
                         midi = pm.PrettyMIDI(full_path)
                         assert len(midi.instruments[0].notes) > 3
-                        cur_cr[num] = self.encoder.encode(midi, instrument_index=0)
+                        cur_cr[num] = (self.encoder.encode(midi, instrument_index=0), fname)
                     except (AssertionError, IOError, KeyError):
                         _LOGGER.warning(f'Could not add midi file {join(dirName, fname)}.')
 
             for k in cur_cr.keys():
                 if k % 2 == 1:
                     try:
-                        cur_call = cur_cr[k]
-                        cur_response = cur_cr[k + 1]
+                        cur_call, call_fname = cur_cr[k]
+                        cur_response, response_fname = cur_cr[k + 1]
                         responses.append(cur_response)
+                        response_fnames.append(response_fname)
                         calls.append(cur_call)
+                        call_fnames.append(call_fname)
                     except KeyError:
                         _LOGGER.warning(f'Could not add index {k} from {dirName} because '
                                         f'it does not have a valid call/response.')
@@ -114,6 +118,8 @@ class CallResponseModel:
         dataset = {
             'calls': np.swapaxes(np.stack(calls), 0, 1),
             'responses': np.swapaxes(np.stack(responses), 0, 1),
+            'call_fnames': call_fnames,
+            'response_fnames': response_fnames,
             'training_indices': indices[:num_training_examples],
             'validation_indices': indices[num_training_examples:]
         }

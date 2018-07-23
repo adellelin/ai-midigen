@@ -94,13 +94,13 @@ def main():
                 return error_response(err)
 
             try:
-                call_encoded = encoder.encode(call_midi).reshape((1, encoder.num_time_steps, encoder.num_symbols))
+                call_encoded = encoder.encode(call_midi).reshape((encoder.num_time_steps, 1, encoder.num_symbols))
             except IndexError as err:
                 return error_response(err)
 
             if not args.mvncs:
                 # send encoding into model
-                outputs_cat = model.evaluate(call_encoded)[0]
+                outputs_cat = model.evaluate(call_encoded)[:, 0]
             else:
                 graph.LoadTensor(call_encoded.astype(np.float16), '')
                 outputs_cur, _ = graph.GetResult()

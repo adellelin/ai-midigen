@@ -1,7 +1,8 @@
 #!/bin/bash
-
+echo "Resolving user:"
 if [ -z $ASUSER ]
 then
+    echo "  Running as root"
     exec "$@"
 else
     adduser -uid $ASUSER --gecos "" --disabled-login user
