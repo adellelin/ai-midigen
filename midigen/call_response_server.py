@@ -14,7 +14,6 @@ try:
     import pymvnc as mvnc
 except ImportError:
     mvnc = None
-from midigen.encode import encoder_from_dict
 from midigen.call_response_model import EvalModel
 from midigen.package import logger, version
 
@@ -37,8 +36,6 @@ def main():
         exit(1)
 
     logger.debug('loading encoder')
-    with open(join(expanduser(args.model_dir), 'encoder.json'), mode='r') as f:
-        encoder = encoder_from_dict(json.load(f))
 
     # Fire up the tensorflow session and recombobulate the generation graph
     if not args.mvncs:
@@ -95,7 +92,8 @@ def main():
                 return error_response(err)
 
             try:
-                call_encoded = encoder.encode(call_midi).reshape((encoder.num_time_steps, 1, encoder.num_symbols))
+                call_encoded = model.encoder.encode(call_midi).reshape(
+                    (model.encoder.num_time_steps, 1, model.encoder.num_symbols))
             except IndexError as err:
                 return error_response(err)
 
@@ -108,7 +106,7 @@ def main():
                 outputs_cat = np.array(outputs_cur, dtype=np.float32)
 
             # decode the response output
-            response_midi = encoder.decode(outputs_cat)
+            response_midi = model.encoder.decode(outputs_cat)
 
             sio = BytesIO()
             response_midi.write(sio)
@@ -116,8 +114,7 @@ def main():
             a_b64 = base64.b64encode(a).decode()
             logger.debug('generated midi binary: ' + a_b64)
             if args.verbose_response:
-                print("outputs", outputs_cat.shape)
-                output_prob = outputs_cat[:, 0, :]
+                output_prob = outputs_cat[:, :]
                 scale = 100.0
                 output_prob_norm = np.exp(output_prob/scale)/np.sum(np.exp(output_prob/scale), axis=1)[:, np.newaxis]
 
