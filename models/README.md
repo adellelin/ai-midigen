@@ -1,17 +1,7 @@
-### guitar_4
+### Rock_Bass_4bar
 
-- 8 Hz trained with L2 regularization
-- Trained on sets 1,2,3,4
 
-### bass_1
-
-- 8 Hz bass, no regularization
-- Trained on bass set 1
-
-### bass_2
-
-- 8 Hz bass, with regularization
-- Trained on bass set 1 with augmentation
+### Blues_Guitar_2bar
 
 
 ### run commands for Script
