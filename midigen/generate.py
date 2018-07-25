@@ -43,23 +43,29 @@ def main():
     call_program = pm.instrument_name_to_program('Acoustic Grand Piano')
     response_program = pm.instrument_name_to_program('Electric Grand Piano')
 
-    def build_midi(call, response):
+    def build_midi(call, response, filename_prefix):
         midis = []
         for example_n in range(call.shape[1]):
             cur_call = call[:, example_n]
-            midis.append(model.encoder.decode(cur_call, program=call_program))
+            cur_call_mid = model.encoder.decode(cur_call, program=call_program)
+            cur_call_mid.write(join(output_path, f'{filename_prefix}_call_{example_n}.mid'))
+            midis.append(cur_call_mid)
+
             cur_response = response[:, example_n]
-            midis.append(model.encoder.decode(cur_response, program=response_program))
+            cur_response_mid = model.encoder.decode(cur_response, program=response_program)
+            cur_response_mid.write(join(output_path, f'{filename_prefix}_response_{example_n}.mid'))
+            midis.append(cur_response_mid)
+
         return concat(midis, args.min_len)
 
-    full_set_path = join(output_path, 'full_set.mid')
-    build_midi(dataset['calls'], dataset['responses']).write(full_set_path)
-
     validation_track_path = join(output_path, 'validation.mid')
-    build_midi(validation_calls, validation_responses).write(validation_track_path)
+    build_midi(validation_calls, validation_responses, 'validation').write(validation_track_path)
+
+    full_set_path = join(output_path, 'full_set.mid')
+    build_midi(dataset['calls'], dataset['responses'], 'full').write(full_set_path)
 
     training_track_path = join(output_path, 'training.mid')
-    build_midi(training_calls, training_responses).write(training_track_path)
+    build_midi(training_calls, training_responses, 'training').write(training_track_path)
 
     try:
         call_fnames = dataset['call_fnames']
