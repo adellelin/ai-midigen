@@ -1,1 +1,0 @@
-train_crmodel --hidden_code_size 10 --max_response_length 32 --batch_size 20 --float_type float32 --validation_ratio 0.05 --gradient_clip 4 --learning_rate 1e-3 --keep_prob 1.0 --seed 1 ~/music_data/2_bar_blues_sets_bass/ /media/mdpicket/FCF6AC0BF6ABC3EC/training_out/ai_music/2bar_blues_bass_1/ ~/music_data/2_bar_blues_sets_bass/encoder.json
