@@ -7,28 +7,36 @@ import pretty_midi as pm
 
 # TODO: make these parameters arguments and possibly launch a crserver as a secondary process
 # TODO: for now just manually launch a crserver with the --verbose_response flag to run this test
-crserver_url = 'http://127.0.0.1:5000/tfgen'
+crserver_url = 'http://127.0.0.1:6000/tfgen'
 this_dir = split(abspath(__file__))[0]
-test_file = join(this_dir, 'test_midi', 'Bass_valid_01.mid')
+test_file = join(this_dir, 'test_midi_jazz_guitar', 'call3.mid')
 #output_dir = expanduser('~')
-output_dir = '/Users/adelleli/Documents/Git/ai-midigen/midigen/test_midi/'
+output_dir = '/Users/adelleli/Documents/Git/ai-midigen/midigen/test_midi_jazz_guitar/'
 
 midi = pm.PrettyMIDI(test_file)
 call_io = BytesIO()
-midi.write(call_io)
-midi.write(join(output_dir, 'call_midi_01.mid'))
-a = call_io.getvalue()
-r = requests.post(
-    url=crserver_url,
-    data=a,
-    headers={'Content-Type': 'application/octet-stream'})
 
-#print(r.headers['content-type'])
+# validate the call
+midi.write(call_io)
+midi.write(join(output_dir, 'call_midi_3.mid'))
+a = call_io.getvalue()
+try:
+    r = requests.post(
+        url=crserver_url,
+        data=a,
+        headers={'Content-Type': 'application/octet-stream'})
+except IOError as e:
+    print(e)
+
+
+print(r.headers['content-type'])
+print(r)
 
 if r.headers['content-type'] == 'application/octet-stream':
+    print("midi")
     response_io = BytesIO(r.content)
     response_midi = pm.PrettyMIDI(response_io)
-    response_midi.write(join(output_dir, 'test_crserver_out-1.mid'))
+    response_midi.write(join(output_dir, 'test_out-3.mid'))
 
 elif r.headers['content-type'] == 'application/json; charset=utf-8':
     response_dict = json.loads(r.content, encoding='utf-8')
