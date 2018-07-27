@@ -31,9 +31,9 @@ from pythonosc import osc_bundle_builder
 from pythonosc import udp_client
 
 # define constants
-_bars_per_call = 2 ### TODO:
-_seconds_per_bar = 2
-_seconds_per_call = _bars_per_call * _seconds_per_bar
+#_bars_per_call = 0 ### TODO:
+#_seconds_per_bar = 2
+#_seconds_per_call = _bars_per_call * _seconds_per_bar
 
 
 # class GenPlayActor(pykka.ThreadingActor):
@@ -273,6 +273,9 @@ def main():
     encoder = encoder_from_dict(encoder_dict)
     _bars_per_call = encoder_dict['num_bars']
     print("bars", _bars_per_call)
+    # _bars_per_call = 0 ### TODO:
+    _seconds_per_bar = 2
+    _seconds_per_call = _bars_per_call * _seconds_per_bar
 
     if args.in_port == 'AI_Guitar_In' and _bars_per_call == 4: ### TODO:
         is_guitar = True
@@ -550,6 +553,7 @@ def main():
                 out_port.send(playing_msg)
 
             if bar_count >= call_bars and bar_count % _bars_per_call == 0:  # every 2 bars
+                print("bars per call", _bars_per_call)
                 logger.info('trigger playback at: ' + str(msg_received))
                 # send last bar state true on 2, 6, 14 bars otherwise false
                 is_last_bar = bar_count == bars_per_cycle - 2
