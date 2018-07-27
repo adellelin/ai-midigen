@@ -24,14 +24,14 @@ import numpy as np
 import sys
 import math
 from os.path import join
-from midigen.encode import MelodyEncoder
+from midigen.encode import encoder_from_dict
 
 from pythonosc import osc_message_builder
 from pythonosc import osc_bundle_builder
 from pythonosc import udp_client
 
 # define constants
-_bars_per_call = 4
+_bars_per_call = 2 ### TODO:
 _seconds_per_bar = 2
 _seconds_per_call = _bars_per_call * _seconds_per_bar
 
@@ -266,7 +266,15 @@ def main():
 
     osc_client = udp_client.SimpleUDPClient(args.ip, args.port)
 
-    if args.in_port == 'AI_Guitar_In' and _bars_per_call == 4:
+    # set up encoder
+    with open(join(args.json), mode='r') as f:
+        #encoder = MelodyEncoder.from_json(f.read())
+        encoder_dict = json.load(f)
+    encoder = encoder_from_dict(encoder_dict)
+    _bars_per_call = encoder_dict['num_bars']
+    print("bars", _bars_per_call)
+
+    if args.in_port == 'AI_Guitar_In' and _bars_per_call == 4: ### TODO:
         is_guitar = True
     else:
         is_guitar = False
@@ -278,11 +286,6 @@ def main():
     playtimestarts = False
     play_start_time = 0
     is_visualizing = False
-
-    # set up encoder
-    with open(join(args.json), mode='r') as f:
-        #encoder = MelodyEncoder.from_json(f.read())
-        encoder = json.load(f)
 
     # create and clear log directory
     dirs = AppDirs('rt_midi_interface', 'midigen', version=version)
@@ -392,7 +395,6 @@ def main():
                         for i in range(num_rest_steps):
                             call_step_count += 1
                             osc_client.send_message("/call_index/"+str(call_step_count), 1)
-                            print("/call_index/", call_step_count, 1)
 
             elif note_state is not None and velocity == 0:
                 # key released - add note to note buffer
@@ -426,7 +428,7 @@ def main():
                     # print("step", note_len, num_time_steps)
 
                     # send to encoder
-                    note_encoded = encoder.encode_ohc(midi)
+                    note_encoded = encoder.encode(midi)
                     note_encoded = note_encoded[:num_time_steps]
                     # num_time_steps = int(note_len/time_step)+1
 
@@ -434,7 +436,7 @@ def main():
                         num_time_steps = 64
 
                     try:
-                        note_encoded.reshape((1, num_time_steps, encoder.num_symbols)) ####
+                        note_encoded.reshape((num_time_steps, 1, encoder.num_symbols)) ####
                     except ValueError as err:
                         # print("ERROR BAD SHAPE ERROR:{0}".format(err))
                         logger.error("ERROR BAD SHAPE ERROR:{0}".format(err))
@@ -446,7 +448,7 @@ def main():
                     for i in range(len(note_index)):
                         call_step_count += 1
                         osc_client.send_message("/call_index/" + str(call_step_count), int(note_index[i]))
-                        print("note encoded", note_encoded.shape, note_index[i])
+                        #print("note encoded", note_encoded.shape, note_index[i])
                         print("/call_index/" + str(call_step_count), note_index[i])
 
                     # rest note
