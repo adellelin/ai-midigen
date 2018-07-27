@@ -10,7 +10,7 @@ if installing on Ubuntu you need ALSA and JACK libraries installed:
 sudo apt-get install libasound2-dev libjack-dev
 ```
 
-2) acquire wheel file from github releases
+2) acquire wheel file from github [releases](https://github.com/adellelin/ai-midigen/releases)
 
 3) create conda environment and install library
 
