@@ -609,7 +609,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 126.666672, 1353.333374, 263.0, 22.0 ],
 					"style" : "",
-					"text" : "/ai/route/kevintoguitar 0"
+					"text" : "/ai/route/kevintoguitar 1"
 				}
 
 			}
@@ -7842,7 +7842,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 196.666748, 306.666748, 50.0, 22.0 ],
 									"style" : "",
-									"text" : "6 0"
+									"text" : "38 0"
 								}
 
 							}
@@ -7869,7 +7869,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 174.0, 154.666748, 53.0, 35.0 ],
 									"style" : "",
-									"text" : "/transport/ 6 0"
+									"text" : "/transport/ 38 0"
 								}
 
 							}
@@ -9153,7 +9153,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 78.0, 253.66687, 181.0, 22.0 ],
 									"style" : "",
-									"text" : "/avatar/control/state/guitar 0. 0."
+									"text" : "/avatar/control/state/guitar 1. 0."
 								}
 
 							}
@@ -9795,7 +9795,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 183.250031, 165.986572, 50.0, 22.0 ],
 									"style" : "",
-									"text" : "0 2"
+									"text" : "0 1"
 								}
 
 							}
@@ -10116,7 +10116,7 @@
 									"presentation" : 1,
 									"presentation_rect" : [ 171.301666, 7.7966, 150.187393, 22.0 ],
 									"style" : "",
-									"text" : "/ai/route/kevintobass 1"
+									"text" : "/ai/route/kevintobass 0"
 								}
 
 							}
@@ -10154,7 +10154,7 @@
 									"presentation" : 1,
 									"presentation_rect" : [ 7.137285, 7.7966, 155.333344, 22.0 ],
 									"style" : "",
-									"text" : "/ai/route/kevintoguitar 0"
+									"text" : "/ai/route/kevintoguitar 1"
 								}
 
 							}
@@ -11642,7 +11642,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 2002.833374, 606.855103, 92.0, 22.0 ],
 					"style" : "",
-					"text" : "loadmess 1850"
+					"text" : "loadmess 1950"
 				}
 
 			}
@@ -15203,7 +15203,7 @@
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 237.166748, 159.0, 29.5, 22.0 ],
 									"style" : "",
-									"text" : "123"
+									"text" : "20"
 								}
 
 							}
@@ -18028,7 +18028,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 2138.083496, 775.46344, 59.0, 22.0 ],
 					"style" : "",
-					"text" : "patch 1 0"
+					"text" : "patch 0 0"
 				}
 
 			}
@@ -18093,7 +18093,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 2056.0, 564.0, 50.0, 22.0 ],
 					"style" : "",
-					"text" : "1"
+					"text" : "0"
 				}
 
 			}
@@ -18332,7 +18332,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 2241.083496, 276.175232, 59.0, 22.0 ],
 					"style" : "",
-					"text" : "patch 1 0"
+					"text" : "patch 0 0"
 				}
 
 			}
@@ -18397,7 +18397,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 2043.833374, 63.417126, 50.0, 22.0 ],
 					"style" : "",
-					"text" : "1"
+					"text" : "0"
 				}
 
 			}
@@ -18592,7 +18592,7 @@
 					"parameter_enable" : 0,
 					"patching_rect" : [ 2739.214355, 296.756958, 269.0, 37.0 ],
 					"style" : "",
-					"text" : "websocket connection available at: http://10.10.11.111:8086"
+					"text" : "websocket connection available at: http://192.168.0.36:8086"
 				}
 
 			}
@@ -19296,7 +19296,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 82.499878, 937.716919, 90.0, 22.0 ],
 					"style" : "",
-					"text" : "patch 0 2"
+					"text" : "patch 0 1"
 				}
 
 			}
@@ -19950,7 +19950,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 203.982559, 1567.796753, 163.171295, 22.0 ],
 					"style" : "",
-					"text" : "/ai/state/bass 0"
+					"text" : "/ai/state/guitar 0"
 				}
 
 			}
@@ -24029,148 +24029,148 @@
 			}
  ],
 		"parameters" : 		{
-			"obj-112" : [ "live.tab[3]", "live.tab", 0 ],
-			"obj-51::obj-520" : [ "number[38]", "number[18]", 0 ],
-			"obj-622" : [ "live.button[36]", "live.button", 0 ],
-			"obj-9::obj-562" : [ "number[39]", "number[18]", 0 ],
-			"obj-623" : [ "live.button[37]", "live.button", 0 ],
-			"obj-116::obj-166" : [ "number[32]", "number[14]", 0 ],
-			"obj-583" : [ "live.text[6]", "live.text[2]", 0 ],
-			"obj-590" : [ "live.button[28]", "live.button", 0 ],
-			"obj-126" : [ "number[15]", "number[15]", 0 ],
-			"obj-214" : [ "live.text[1]", "live.text", 0 ],
+			"obj-531" : [ "slider[7]", "slider[4]", 0 ],
 			"obj-584" : [ "live.button[22]", "live.button", 0 ],
-			"obj-35::obj-576" : [ "number[40]", "number[18]", 0 ],
-			"obj-450" : [ "slider[4]", "slider[4]", 0 ],
 			"obj-585" : [ "live.button[23]", "live.button", 0 ],
+			"obj-677::obj-359" : [ "live.button[38]", "live.button", 0 ],
 			"obj-586" : [ "live.button[24]", "live.button", 0 ],
 			"obj-587" : [ "live.button[25]", "live.button", 0 ],
-			"obj-33" : [ "live.tab", "live.tab", 0 ],
-			"obj-241" : [ "umenu", "umenu", 0 ],
-			"obj-262" : [ "live.text[2]", "live.text[2]", 0 ],
+			"obj-186" : [ "number[17]", "number[17]", 0 ],
+			"obj-731::obj-482" : [ "number[20]", "number[19]", 0 ],
 			"obj-589" : [ "live.button[27]", "live.button", 0 ],
-			"obj-731::obj-481" : [ "number[19]", "number[19]", 0 ],
-			"obj-116::obj-165" : [ "number[31]", "number[15]", 0 ],
+			"obj-62" : [ "number[7]", "number[7]", 0 ],
+			"obj-544" : [ "number[24]", "number[24]", 0 ],
 			"obj-559" : [ "live.button[14]", "live.button", 0 ],
-			"obj-19" : [ "number[1]", "number[1]", 0 ],
-			"obj-127" : [ "number[14]", "number[14]", 0 ],
-			"obj-373" : [ "live.tab[6]", "live.tab[6]", 0 ],
-			"obj-760" : [ "live.text[15]", "live.text[2]", 0 ],
-			"obj-128" : [ "number[13]", "number[13]", 0 ],
-			"obj-187" : [ "live.tab[5]", "live.tab[4]", 0 ],
+			"obj-542" : [ "number[23]", "number[23]", 0 ],
+			"obj-828::obj-778" : [ "number[28]", "number[28]", 0 ],
+			"obj-110" : [ "number[25]", "number[25]", 0 ],
+			"obj-645" : [ "live.text[13]", "live.text[11]", 0 ],
+			"obj-521" : [ "slider[6]", "slider[4]", 0 ],
+			"obj-2" : [ "live.button[2]", "live.button", 0 ],
+			"obj-620" : [ "live.button[34]", "live.button", 0 ],
 			"obj-119" : [ "live.tab[2]", "live.tab[1]", 0 ],
-			"obj-129" : [ "number[12]", "number[12]", 0 ],
-			"obj-7" : [ "live.text[16]", "live.text", 0 ],
-			"obj-675::obj-364" : [ "live.button[39]", "live.button", 0 ],
-			"obj-556" : [ "live.button[12]", "live.button", 0 ],
-			"obj-553" : [ "slider[8]", "slider[4]", 0 ],
-			"obj-624" : [ "live.text[11]", "live.text[11]", 0 ],
-			"obj-828::obj-266" : [ "number[18]", "number[18]", 0 ],
-			"obj-65" : [ "number[4]", "number[4]", 0 ],
-			"obj-495" : [ "slider[5]", "slider[4]", 0 ],
-			"obj-211" : [ "live.text", "live.text", 0 ],
+			"obj-79::obj-508" : [ "number[21]", "number[18]", 0 ],
+			"obj-116::obj-166" : [ "number[32]", "number[14]", 0 ],
 			"obj-618" : [ "live.button[32]", "live.button", 0 ],
 			"obj-619" : [ "live.button[33]", "live.button", 0 ],
+			"obj-19" : [ "number[1]", "number[1]", 0 ],
 			"obj-588" : [ "live.button[26]", "live.button", 0 ],
-			"obj-2" : [ "live.button[2]", "live.button", 0 ],
-			"obj-773" : [ "live.text[7]", "live.text[2]", 0 ],
-			"obj-731::obj-482" : [ "number[20]", "number[19]", 0 ],
+			"obj-126" : [ "number[15]", "number[15]", 0 ],
+			"obj-51::obj-520" : [ "number[38]", "number[18]", 0 ],
 			"obj-565" : [ "live.button[18]", "live.button", 0 ],
-			"obj-110" : [ "number[25]", "number[25]", 0 ],
-			"obj-677::obj-359" : [ "live.button[38]", "live.button", 0 ],
+			"obj-241" : [ "umenu", "umenu", 0 ],
 			"obj-41::obj-493" : [ "number[37]", "number[18]", 0 ],
-			"obj-20" : [ "number[2]", "number[2]", 0 ],
-			"obj-544" : [ "number[24]", "number[24]", 0 ],
-			"obj-186" : [ "number[17]", "number[17]", 0 ],
-			"obj-542" : [ "number[23]", "number[23]", 0 ],
-			"obj-116::obj-167" : [ "number[33]", "number[13]", 0 ],
-			"obj-116::obj-168" : [ "number[34]", "number[12]", 0 ],
-			"obj-621" : [ "live.button[35]", "live.button", 0 ],
-			"obj-558" : [ "live.button[13]", "live.button", 0 ],
+			"obj-556" : [ "live.button[12]", "live.button", 0 ],
+			"obj-828::obj-266" : [ "number[18]", "number[18]", 0 ],
 			"obj-566" : [ "live.button[19]", "live.button", 0 ],
-			"obj-531" : [ "slider[7]", "slider[4]", 0 ],
-			"obj-148" : [ "number[16]", "number[16]", 0 ],
 			"obj-567" : [ "live.button[20]", "live.button", 0 ],
-			"obj-617" : [ "live.button[31]", "live.button", 0 ],
-			"obj-64" : [ "number[5]", "number[5]", 0 ],
-			"obj-569" : [ "live.button[21]", "live.button", 0 ],
-			"obj-109::obj-456" : [ "number[36]", "number[18]", 0 ],
-			"obj-518" : [ "live.text[5]", "live.text[2]", 0 ],
-			"obj-263" : [ "live.text[3]", "live.text[2]", 0 ],
-			"obj-510" : [ "live.text[4]", "live.text[2]", 0 ],
-			"obj-116::obj-174" : [ "number[35]", "number[25]", 0 ],
-			"obj-21" : [ "number[3]", "number[3]", 0 ],
-			"obj-620" : [ "live.button[34]", "live.button", 0 ],
-			"obj-16" : [ "number[29]", "number[24]", 0 ],
-			"obj-17" : [ "number[30]", "number[23]", 0 ],
-			"obj-79::obj-508" : [ "number[21]", "number[18]", 0 ],
-			"obj-605" : [ "live.text[8]", "live.text[2]", 0 ],
-			"obj-99::obj-516" : [ "number[22]", "number[18]", 0 ],
-			"obj-828::obj-778" : [ "number[28]", "number[28]", 0 ],
-			"obj-18" : [ "number", "number", 0 ],
-			"obj-645" : [ "live.text[13]", "live.text[11]", 0 ],
-			"obj-616" : [ "live.button[30]", "live.button", 0 ],
-			"obj-63" : [ "number[6]", "number[6]", 0 ],
-			"obj-521" : [ "slider[6]", "slider[4]", 0 ],
 			"obj-731::obj-525" : [ "number[41]", "number[41]", 0 ],
-			"obj-751::obj-131" : [ "number[8]", "number[8]", 0 ],
-			"obj-485" : [ "kslider", "kslider", 0 ],
-			"obj-591" : [ "live.button[29]", "live.button", 0 ],
-			"obj-608" : [ "live.text[10]", "live.text[2]", 0 ],
-			"obj-564" : [ "live.button[17]", "live.button", 0 ],
-			"obj-606" : [ "live.text[9]", "live.text[2]", 0 ],
-			"obj-115" : [ "live.tab[1]", "live.tab[1]", 0 ],
+			"obj-569" : [ "live.button[21]", "live.button", 0 ],
+			"obj-518" : [ "live.text[5]", "live.text[2]", 0 ],
+			"obj-617" : [ "live.button[31]", "live.button", 0 ],
+			"obj-510" : [ "live.text[4]", "live.text[2]", 0 ],
+			"obj-495" : [ "slider[5]", "slider[4]", 0 ],
+			"obj-20" : [ "number[2]", "number[2]", 0 ],
+			"obj-99::obj-516" : [ "number[22]", "number[18]", 0 ],
+			"obj-116::obj-165" : [ "number[31]", "number[15]", 0 ],
 			"obj-147" : [ "live.tab[4]", "live.tab[4]", 0 ],
+			"obj-127" : [ "number[14]", "number[14]", 0 ],
+			"obj-485" : [ "kslider", "kslider", 0 ],
+			"obj-9::obj-562" : [ "number[39]", "number[18]", 0 ],
+			"obj-128" : [ "number[13]", "number[13]", 0 ],
+			"obj-129" : [ "number[12]", "number[12]", 0 ],
+			"obj-751::obj-131" : [ "number[8]", "number[8]", 0 ],
+			"obj-605" : [ "live.text[8]", "live.text[2]", 0 ],
+			"obj-263" : [ "live.text[3]", "live.text[2]", 0 ],
+			"obj-450" : [ "slider[4]", "slider[4]", 0 ],
+			"obj-558" : [ "live.button[13]", "live.button", 0 ],
+			"obj-65" : [ "number[4]", "number[4]", 0 ],
+			"obj-33" : [ "live.tab", "live.tab", 0 ],
 			"obj-626" : [ "live.text[12]", "live.text[11]", 0 ],
-			"obj-62" : [ "number[7]", "number[7]", 0 ]
+			"obj-109::obj-456" : [ "number[36]", "number[18]", 0 ],
+			"obj-616" : [ "live.button[30]", "live.button", 0 ],
+			"obj-21" : [ "number[3]", "number[3]", 0 ],
+			"obj-675::obj-364" : [ "live.button[39]", "live.button", 0 ],
+			"obj-373" : [ "live.tab[6]", "live.tab[6]", 0 ],
+			"obj-116::obj-167" : [ "number[33]", "number[13]", 0 ],
+			"obj-591" : [ "live.button[29]", "live.button", 0 ],
+			"obj-116::obj-168" : [ "number[34]", "number[12]", 0 ],
+			"obj-760" : [ "live.text[15]", "live.text[2]", 0 ],
+			"obj-608" : [ "live.text[10]", "live.text[2]", 0 ],
+			"obj-262" : [ "live.text[2]", "live.text[2]", 0 ],
+			"obj-564" : [ "live.button[17]", "live.button", 0 ],
+			"obj-7" : [ "live.text[16]", "live.text", 0 ],
+			"obj-606" : [ "live.text[9]", "live.text[2]", 0 ],
+			"obj-64" : [ "number[5]", "number[5]", 0 ],
+			"obj-214" : [ "live.text[1]", "live.text", 0 ],
+			"obj-624" : [ "live.text[11]", "live.text[11]", 0 ],
+			"obj-553" : [ "slider[8]", "slider[4]", 0 ],
+			"obj-211" : [ "live.text", "live.text", 0 ],
+			"obj-18" : [ "number", "number", 0 ],
+			"obj-115" : [ "live.tab[1]", "live.tab[1]", 0 ],
+			"obj-35::obj-576" : [ "number[40]", "number[18]", 0 ],
+			"obj-116::obj-174" : [ "number[35]", "number[25]", 0 ],
+			"obj-622" : [ "live.button[36]", "live.button", 0 ],
+			"obj-621" : [ "live.button[35]", "live.button", 0 ],
+			"obj-187" : [ "live.tab[5]", "live.tab[4]", 0 ],
+			"obj-623" : [ "live.button[37]", "live.button", 0 ],
+			"obj-731::obj-481" : [ "number[19]", "number[19]", 0 ],
+			"obj-16" : [ "number[29]", "number[24]", 0 ],
+			"obj-583" : [ "live.text[6]", "live.text[2]", 0 ],
+			"obj-17" : [ "number[30]", "number[23]", 0 ],
+			"obj-148" : [ "number[16]", "number[16]", 0 ],
+			"obj-590" : [ "live.button[28]", "live.button", 0 ],
+			"obj-63" : [ "number[6]", "number[6]", 0 ],
+			"obj-112" : [ "live.tab[3]", "live.tab", 0 ],
+			"obj-773" : [ "live.text[7]", "live.text[2]", 0 ]
 		}
 ,
 		"dependency_cache" : [ 			{
 				"name" : "background_max.png",
-				"bootpath" : "~/Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
-				"patcherrelativepath" : "../../../../Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
+				"bootpath" : "~/Documents/Git/ai-midigen/max",
+				"patcherrelativepath" : ".",
 				"type" : "PNG ",
 				"implicit" : 1
 			}
 , 			{
 				"name" : "line_max.png",
-				"bootpath" : "~/Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
-				"patcherrelativepath" : "../../../../Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
+				"bootpath" : "~/Documents/Git/ai-midigen/max",
+				"patcherrelativepath" : ".",
 				"type" : "PNG ",
 				"implicit" : 1
 			}
 , 			{
 				"name" : "ella_max.png",
-				"bootpath" : "~/Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
-				"patcherrelativepath" : "../../../../Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
+				"bootpath" : "~/Documents/Git/ai-midigen/max",
+				"patcherrelativepath" : ".",
 				"type" : "PNG ",
 				"implicit" : 1
 			}
 , 			{
 				"name" : "miles_Max.png",
-				"bootpath" : "~/Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
-				"patcherrelativepath" : "../../../../Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
+				"bootpath" : "~/Documents/Git/ai-midigen/max",
+				"patcherrelativepath" : ".",
 				"type" : "PNG ",
 				"implicit" : 1
 			}
 , 			{
 				"name" : "movidius_max.png",
-				"bootpath" : "~/Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
-				"patcherrelativepath" : "../../../../Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
+				"bootpath" : "~/Documents/Git/ai-midigen/max",
+				"patcherrelativepath" : ".",
 				"type" : "PNG ",
 				"implicit" : 1
 			}
 , 			{
 				"name" : "line_v_max.png",
-				"bootpath" : "~/Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
-				"patcherrelativepath" : "../../../../Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
+				"bootpath" : "~/Documents/Git/ai-midigen/max",
+				"patcherrelativepath" : ".",
 				"type" : "PNG ",
 				"implicit" : 1
 			}
 , 			{
 				"name" : "disklavier_max.png",
-				"bootpath" : "~/Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
-				"patcherrelativepath" : "../../../../Dropbox (Personal)/MUSIC_AI_SETUP/Setup_COMPUTEX/COMPUTEX/1 max",
+				"bootpath" : "~/Documents/Git/ai-midigen/max",
+				"patcherrelativepath" : ".",
 				"type" : "PNG ",
 				"implicit" : 1
 			}
