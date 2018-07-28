@@ -30,11 +30,6 @@ from pythonosc import osc_message_builder
 from pythonosc import osc_bundle_builder
 from pythonosc import udp_client
 
-# define constants
-#_bars_per_call = 0 ### TODO:
-#_seconds_per_bar = 2
-#_seconds_per_call = _bars_per_call * _seconds_per_bar
-
 
 # class GenPlayActor(pykka.ThreadingActor):
 class OscSendActor():
@@ -48,40 +43,52 @@ class OscSendActor():
             response_out_dist = message['response_out_dist']
             out_symbols = message['out_symbols']
             client = message['osc_client']
-            is_guitar = message['is_guitar']
+            #is_guitar = message['is_guitar']
+            visualizer_pitches = message['visualizer_pitches']
 
             # print("output distribution", response_out_np_dist)
             print("output symbols", out_symbols)
-            client.send_message("/output_symbols/", out_symbols)
 
+            # remap output symbols to the visualizer range
+            print("visualizer ", visualizer_pitches)
+            response_indeces = []
+            selected_indeces = []
+
+            # check the responses against the seleced visualizer pitch index
+            for note in out_symbols:
+                for k, v in visualizer_pitches.items():
+                    if note == v:
+                        response_indeces.append(k)
+
+            client.send_message("/output_symbols/", response_indeces)
+
+            # get the values in the visualizer pitches in an array to use as column lookup in the prob dist
+            for k, v in visualizer_pitches.items():
+                selected_indeces.append(v)
+            print("out", selected_indeces, response_indeces)
             # self._logger.info("is visualizing" + str(is_visualizing))
 
             try:
                 response_out_np_dist = np.array(response_out_dist, dtype=float)
-                selected_note_index = []
-
-                if is_guitar:
-                    selected_note_index = [0, 1, 6, 8, 9, 14, 15, 16, 17, 18, 20, 23, 24, 25, 26, 27, 29]
-                else:
-                    for row_index in range(len(response_out_np_dist[0])):
-                        selected_note_index.append(row_index)
-                print("note index", selected_note_index)
-
+                intensity_multiplier = 10
 
                 # set up osc bundle
                 bundle = osc_bundle_builder.OscBundleBuilder(
                     osc_bundle_builder.IMMEDIATELY)
                 test_array = []
-                #print("output prob", response_out_np_dist.shape, response_out_np_dist, len(response_out_np_dist))
-                for index in range(len(response_out_np_dist)):
+
+                # go through the time slices
+                for i in range(response_out_np_dist.shape[0]):
                     sub_array = []
-                    msg = osc_message_builder.OscMessageBuilder(address="/probdist/" + str(index))
-                    #print("iter", index, response_out_np_dist[index])
-                    #for x in np.nditer(response_out_np_dist[index]):
-                    for column_index in selected_note_index:
-                        x = response_out_np_dist[index, column_index]
-                        msg.add_arg(float(x) * 10)
-                        sub_array.append(float(x))
+                    msg = osc_message_builder.OscMessageBuilder(address="/probdist/" + str(i))
+                    # go throught the notes in the encoder indexed notes
+                    for max_column_index in range(len(selected_indeces)):
+
+                        probability = response_out_np_dist[i, selected_indeces[max_column_index]]
+                        msg.add_arg(float(probability) * intensity_multiplier)
+                        sub_array.append(float(probability))
+
+                    #print(i, sub_array.index(max(sub_array)), sub_array)
                     bundle.add_content(msg.build())
                     test_array.append(sub_array)
                     #print("osc message prob", msg.address, msg.args)
@@ -89,7 +96,7 @@ class OscSendActor():
                 client.send(bundle)
 
                 try:
-                    assert test_array[index] == response_out_dist[index]
+                    assert test_array[i] == response_out_dist[i]
                 except AssertionError:
                     logging.warning("arrays don't match")
             except IOError as e:
@@ -126,7 +133,7 @@ class GenPlayActor():
             is_visualizing = message['is_visualizing']
             client = message['osc_client']
             oscSendActor = message['oscSendActor']
-            is_guitar = message['is_guitar']
+            visualizer_pitches = message['visualizer_pitches']
 
             if self._log_midi_files:
                 call_path = path.join(self._logdir, 'call'+str(self._midi_file_log_index)+'.mid')
@@ -177,7 +184,7 @@ class GenPlayActor():
                         out_symbols = np.argmax(response_out_np_dist, axis=1)
                         out_symbols = out_symbols.tolist()
                         oscSendActor.tell({'command': 'send_prob_dist', 'response_out_dist': response_out_dist, 'out_symbols': out_symbols,
-                                          'osc_client': client, 'is_guitar': is_guitar})
+                                          'osc_client': client, 'visualizer_pitches': visualizer_pitches})
 
 
                 # if in non-verbose, content is only midi file
@@ -261,6 +268,7 @@ def main():
     parser.add_argument("--port", type=int, default=5008,
                         help="The port the OSC server is listening on")
     parser.add_argument("--json", default="/Users/adelleli/Documents/encoder.json", help = "location of json")
+    parser.add_argument("--visualizer_notes", default=[0, 1, 60, 62, 63, 65, 66, 67, 68, 70, 72, 74, 75, 76, 77, 78, 79, 80], help = "array of notes for visualizer")
 
     args = parser.parse_args()
 
@@ -272,15 +280,28 @@ def main():
         encoder_dict = json.load(f)
     encoder = encoder_from_dict(encoder_dict)
     _bars_per_call = encoder_dict['num_bars']
+    # create dictionary of notes from encoder
+    symbols = [0,1]
+    _allowed_pitches = symbols + encoder_dict['allowed_pitches']
+    # make a dictionary from encoder. same as encoder.decoder.lut() with added 0 and 1
+    _allowed_pitches_dict = dict([i,_allowed_pitches[i]] for i in range(len(_allowed_pitches)))
+    print("allowed", _allowed_pitches_dict)
+
+    selected_notes = args.visualizer_notes
+    selected_indeces = []
+
+    for k, v in _allowed_pitches_dict.items():
+        if v in selected_notes:
+            selected_indeces.append(k)
+    print("selected", selected_indeces, len(selected_indeces))
+    # map note indeces to the visualizer range [0 - 17]
+    _visualizer_pitches = dict([i, selected_indeces[i]] for i in range(len(selected_indeces)))
+    print("visualizer", _visualizer_pitches)
+
     print("bars", _bars_per_call)
     # _bars_per_call = 0 ### TODO:
     _seconds_per_bar = 2
     _seconds_per_call = _bars_per_call * _seconds_per_bar
-
-    if args.in_port == 'AI_Guitar_In' and _bars_per_call == 4: ### TODO:
-        is_guitar = True
-    else:
-        is_guitar = False
 
     # dynamic encoder variables
     end_note_time = 0
@@ -417,6 +438,7 @@ def main():
                     # turn note into midi
                     inst = pm.Instrument(program=0)
                     note_len = cur_note.end_time - cur_note.start_time
+                    visualizer_height = 17
 
                     pmnote = pm.Note(
                         velocity=cur_note.velocity,
@@ -445,14 +467,15 @@ def main():
                         logger.error("ERROR BAD SHAPE ERROR:{0}".format(err))
                         continue
 
-                    note_index = np.argmax(note_encoded, axis=1) #####
+                    live_encoded_note = np.argmax(note_encoded, axis=1)
 
                     # get returned encoding, send to osc
-                    for i in range(len(note_index)):
+                    for note in live_encoded_note:
                         call_step_count += 1
-                        osc_client.send_message("/call_index/" + str(call_step_count), int(note_index[i]))
-                        #print("note encoded", note_encoded.shape, note_index[i])
-                        print("/call_index/" + str(call_step_count), note_index[i])
+                        # remap note inde
+                        for k, v in _visualizer_pitches.items():
+                            if note == v:
+                                osc_client.send_message("/call_index/" + str(call_step_count), int(k)%visualizer_height)
 
                     # rest note
                     end_note_time = cur_note.end_time
@@ -606,7 +629,7 @@ def main():
                 midi.instruments.append(inst)
                 actor.tell({'command': 'generate', 'midi': midi, 'inport':in_port,
                             'responses_dir': args.responses_dir, 'is_visualizing': is_visualizing,
-                            'osc_client': osc_client, 'oscSendActor': oscSendActor, 'is_guitar':is_guitar})
+                            'osc_client': osc_client, 'oscSendActor': oscSendActor, 'visualizer_pitches': _visualizer_pitches})
 
         else:
             logger.error('Unknown message type: ' + str(msg))
