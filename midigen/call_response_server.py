@@ -36,12 +36,12 @@ def main():
         exit(1)
 
     logger.debug('loading encoder')
-
     # Fire up the tensorflow session and recombobulate the generation graph
     if not args.mvncs:
         model = EvalModel(expanduser(args.model_dir))
     else:
         logger.debug('Connecting to MvNCS.')
+        model = EvalModel(expanduser(args.model_dir))
         devs = mvnc.EnumerateDevices()
         if len(devs) == 0:
             print('No MvNCS found!')
@@ -103,7 +103,7 @@ def main():
             else:
                 graph.LoadTensor(call_encoded.astype(np.float16), '')
                 outputs_cur, _ = graph.GetResult()
-                outputs_cat = np.array(outputs_cur, dtype=np.float32)[:,:model.encoder.num_symbols];
+                outputs_cat = np.array(outputs_cur, dtype=np.float32)[:, 0, :model.encoder.num_symbols]
 
             # decode the response output
             response_midi = model.encoder.decode(outputs_cat)
