@@ -103,7 +103,7 @@ def main():
             else:
                 graph.LoadTensor(call_encoded.astype(np.float16), '')
                 outputs_cur, _ = graph.GetResult()
-                outputs_cat = np.array(outputs_cur, dtype=np.float32)
+                outputs_cat = np.array(outputs_cur, dtype=np.float32)[:,:model.encoder.num_symbols];
 
             # decode the response output
             response_midi = model.encoder.decode(outputs_cat)
