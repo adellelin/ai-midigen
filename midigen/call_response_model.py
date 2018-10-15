@@ -85,7 +85,8 @@ class CallResponseModel:
                     full_path = join(dirName, fname)
                     try:
                         midi = pm.PrettyMIDI(full_path)
-                        assert len(midi.instruments[0].notes) > 3
+                        print("midi", full_path)
+                        assert len(midi.instruments[0].notes) > 2 # originally 3 but made 2 for dj data
                         cur_cr[num] = (self.encoder.encode(midi, instrument_index=0), fname)
                     except (AssertionError, IOError, KeyError):
                         _LOGGER.warning(f'Could not add midi file {join(dirName, fname)}.')
@@ -307,6 +308,7 @@ class CallResponseModel:
 
         num_training_examples = dataset['training_indices'].size
         num_batches, remainder = divmod(num_training_examples, self.batch_size)
+        print("sample compare", num_training_examples, self.batch_size)
         if remainder != 0:
             raise ValueError(f'num of training examples ({num_training_examples}) must be an '
                              f'integer multiple of batch size ({self.batch_size})')

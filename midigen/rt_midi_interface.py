@@ -219,7 +219,7 @@ class GenPlayActor():
                         #print("tracks", self._response_midi.tracks, len(self._response_midi.tracks))
                         #print("tracks print", self._response_midi.print_tracks())
                         self._outport.send(play_msg)
-                        #print("message Count", msgCount, play_msg)
+                        print("Playing Note ", msgCount, play_msg)
                         if is_last_bar == True and msgCount > (totalMessages - 3) and play_msg.velocity > 0:
                             last_note_msg = mido.Message(type='control_change', control=22, value=127)
                             self._outport.send(last_note_msg)
@@ -401,7 +401,7 @@ def main():
             else:
                 n += 1
 
-        if msg.type == 'note_on':
+        if msg.type == 'note_on': #and msg.note is not 61: #TODO:check
             pitch = msg.note
             channel = msg.channel
             velocity = msg.velocity
@@ -429,7 +429,7 @@ def main():
                     start_time=note_state[1],
                     end_time=msg_received)
                 note_buffer.append(cur_note)
-                logger.info('added note to buffer: \n    ' + str(cur_note) + str(is_visualizing))
+                logger.info('added note to buffer: \n    ' + str(cur_note))
 
 
                 # DYNAMIC ENCODING
