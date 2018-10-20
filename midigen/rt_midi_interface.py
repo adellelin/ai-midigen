@@ -104,12 +104,23 @@ class OscSendActor():
 
         pass
 
+class BarCountActor():
+    def __init__(self, outport):
+        self._outport = outport
+
+    def tell(self, message):
+        if message['command'] == 'sendbarcount':
+            bar_count = message['bar_count']
+            #barcountmsg = mido.Message(type='control_change', control=22, value=self._bar_count_msg)
+            bar_count_msg = mido.Message(type='control_change', control=20, value=bar_count)
+            print("outport", self._outport, bar_count)
+            self._outport.send(bar_count_msg)
 
 
-# class GenPlayActor(pykka.ThreadingActor):
-class GenPlayActor():
+class GenPlayActor(pykka.ThreadingActor):
+#class GenPlayActor():
     def __init__(self, outport, log_midi_files, logdir, crserver_url, logger, tempo):
-        # super(GenPlayActor, self).__init__()
+        super(GenPlayActor, self).__init__()
         self._response_midi = None
 
         self._outport = outport
@@ -121,10 +132,11 @@ class GenPlayActor():
         self._max_midi_files = 100
         self._logdir = logdir
         self._tempo = tempo
+
         #self._is_last_bar = is_last_bar
 
-    # def on_receive(self, message):
-    def tell(self, message):
+    def on_receive(self, message):
+    #def tell(self, message):
         if message['command'] == 'generate':
             gen_start = time.time()
             midi = message['midi']
@@ -228,6 +240,7 @@ class GenPlayActor():
                     self._response_midi = None
             except AttributeError as e:
                 self._logger.exception(e)
+
         else:
             self._logger.error('Actor received unknown message: ' + str(message))
 
@@ -248,7 +261,6 @@ class GenPlayActor():
                 loop.write(response_io.getvalue())
                 print("midi file", loop_response_path)
             self._midi_file_log_index = (self._midi_file_log_index + 1) % self._max_midi_files
-
 
 def main():
     parser = argparse.ArgumentParser(description='Launch generation server.')
@@ -355,16 +367,6 @@ def main():
     logger.info('In port: ' + str(in_port) + ' Out port: ' + str(out_port))
     is_last_bar = False;
 
-    # create the osc sending actor
-    oscSendActor = OscSendActor()
-
-    # initiate generation/play actor
-    # actor = GenPlayActor.start(
-    actor = GenPlayActor(
-        outport=out_port, log_midi_files=args.log_midi_files, logdir=logdir,
-        crserver_url=args.crserver_url, logger=logger, tempo=args.tempo)
-    # atexit.register(actor.stop)
-
 
     # define state
     # counter that keeps track of current bar length
@@ -385,6 +387,18 @@ def main():
 
     # dict to track key presses and releases
     on_notes = {}
+
+    # create the osc sending actor
+    oscSendActor = OscSendActor()
+
+    barCountActor = BarCountActor(outport=out_port)
+
+    # initiate generation/play actor
+    actor = GenPlayActor.start(
+    #actor = GenPlayActor(
+        outport=out_port, log_midi_files=args.log_midi_files, logdir=logdir,
+        crserver_url=args.crserver_url, logger=logger, tempo=args.tempo)
+    # atexit.register(actor.stop)
 
     # enter control loop: reading messages from the input port
     for msg in in_port:
@@ -552,13 +566,16 @@ def main():
             # increment and report bar count
             bar_count = (bar_count + 1) % bars_per_cycle
             logger.info("bar count: " + str(bar_count))
-            bar_count_msg = mido.Message(type='control_change', control=20, value=bar_count)
-            out_port.send(bar_count_msg)
+
+            barCountActor.tell({'command':'sendbarcount', 'bar_count':bar_count})
+            #out_port.send(bar_count_msg)
 
             # update listening/playing state for max display
             if bar_count == 0:
-                ready_msg = mido.Message(type='control_change', control=15, value=127)
-                out_port.send(ready_msg)
+                #ready_msg = mido.Message(type='control_change', control=15, value=127)
+                #out_port.send(ready_msg)
+                listening_msg = mido.Message(type='control_change', control=16, value=127)
+                out_port.send(listening_msg)
 
                 # clear response visuals
                 osc_client.send_message("/response_reset/", 1)
@@ -590,6 +607,7 @@ def main():
                 else:
                     pass
 
+        # send midi buffer to trigger model
         elif msg.type == 'control_change' and msg.control == 21 and msg.value == 5:
             trigger_generation = call_bars - 1 <= bar_count < 2*call_bars - 1 and \
                                  bar_count % _bars_per_call == _bars_per_call - 1
@@ -630,6 +648,12 @@ def main():
                 actor.tell({'command': 'generate', 'midi': midi, 'inport':in_port,
                             'responses_dir': args.responses_dir, 'is_visualizing': is_visualizing,
                             'osc_client': osc_client, 'oscSendActor': oscSendActor, 'visualizer_pitches': _visualizer_pitches})
+
+        # send reset notes
+        elif msg.type == 'control_change' and msg.control == 23:
+            #print("reset notes")
+            model_idle = True
+            out_port.reset()
 
         else:
             logger.error('Unknown message type: ' + str(msg))
