@@ -198,7 +198,6 @@ class GenPlayActor(pykka.ThreadingActor):
                         oscSendActor.tell({'command': 'send_prob_dist', 'response_out_dist': response_out_dist, 'out_symbols': out_symbols,
                                           'osc_client': client, 'visualizer_pitches': visualizer_pitches})
 
-
                 # if in non-verbose, content is only midi file
                 elif r.headers['content-type'] == 'application/octet-stream':
                     response_io = BytesIO(r.content)
@@ -558,7 +557,7 @@ def main():
                     # leave idle state and set bar count to the beginning of the cycle
                     bar_count = 0
                     model_idle = False
-                    logger.info('entering ready')
+                    logger.info('entering listening')
 
             bars_per_cycle = 2 * value
             call_bars = value
@@ -574,6 +573,7 @@ def main():
             if bar_count == 0:
                 #ready_msg = mido.Message(type='control_change', control=15, value=127)
                 #out_port.send(ready_msg)
+                ## switched to sending listening state at bar count = 0 to be less confusing
                 listening_msg = mido.Message(type='control_change', control=16, value=127)
                 out_port.send(listening_msg)
 
@@ -593,7 +593,7 @@ def main():
                 out_port.send(playing_msg)
 
             if bar_count >= call_bars and bar_count % _bars_per_call == 0:  # every 2 bars
-                print("bars per call", _bars_per_call)
+                #print("bars per call", _bars_per_call)
                 logger.info('trigger playback at: ' + str(msg_received))
                 # send last bar state true on 2, 6, 14 bars otherwise false
                 is_last_bar = bar_count == bars_per_cycle - 2
@@ -635,11 +635,13 @@ def main():
                         end=start_time + note_len)
                     inst.notes.append(pmnote)
 
-            if len(inst.notes) == 0:
-                logger.info('entering idle mode'+ str(len(inst.notes)))
+            # if no notes in buffer and has listened for the full number of bar calls
+            if len(inst.notes) == 0 and bar_count >= call_bars:
+                logger.info('entering idle mode '+ str(len(inst.notes)))
                 model_idle = True
                 bar_count = 0
             else:
+                # generate response from server
                 logger.info('call number ' + str(call_number) +' generation triggered '
                             + str(_seconds_per_bar - generation_delta) + ' early')
 
@@ -649,7 +651,7 @@ def main():
                             'responses_dir': args.responses_dir, 'is_visualizing': is_visualizing,
                             'osc_client': osc_client, 'oscSendActor': oscSendActor, 'visualizer_pitches': _visualizer_pitches})
 
-        # send reset notes
+        # send reset notes when get a stop from max
         elif msg.type == 'control_change' and msg.control == 23:
             #print("reset notes")
             model_idle = True
