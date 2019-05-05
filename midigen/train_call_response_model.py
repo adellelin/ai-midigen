@@ -1,4 +1,5 @@
-from os.path import expanduser
+from os.path import expanduser, exists
+from os import mkdir
 import argparse
 import json
 import logging
@@ -54,8 +55,14 @@ def main():
         'seed': args.seed
     }
 
+    output_fullpath = expanduser(args.output_path)
+
+    if exists(output_fullpath) is False:
+        mkdir(output_fullpath)
+        mkdir(output_fullpath+"/inference_builder")
+
     model = CallResponseModel(params)
-    model.train(expanduser(args.dataset_path), expanduser(args.output_path), args.reset_learning_rate)
+    model.train(expanduser(args.dataset_path), expanduser(output_fullpath), args.reset_learning_rate)
 
 
 if __name__ == '__main__':

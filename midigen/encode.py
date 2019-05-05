@@ -185,6 +185,9 @@ class MelodyEncoder(Encoder):
         self.sixteeth_time = self.bar_time / 16.0
         self.encoding_channels = self.num_symbols
 
+        # check for notes in midi
+        self.note_pitches = []
+
     def __dict__(self):
         return dict({
             u'allowed_pitches': self.allowed_pitches,
@@ -202,7 +205,6 @@ class MelodyEncoder(Encoder):
         """
         inst = midi.instruments[instrument_index]
         assert not inst.is_drum
-
         us = 10  # us is the up-sampling factor
         steps_per_s = us*self.time_resolution
         map_steps = int(self.total_time*steps_per_s)
@@ -227,6 +229,11 @@ class MelodyEncoder(Encoder):
             release_map[symbol_n, release_n] = 1.0
             hit_n = min(int(note.start * self.time_resolution), self.num_time_steps - 1)
             hit_map[symbol_n, hit_n] = 1.0
+            self.note_pitches.append(note.pitch)
+
+        # use this line to gather which pitches are in dataset
+        #print("pitches", set(self.note_pitches))
+
         release_hit_map = np.logical_and(release_map, hit_map)
 
         # Encodes notes according to specified time resolution,
