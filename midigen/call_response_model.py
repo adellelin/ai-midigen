@@ -1,6 +1,7 @@
-from os.path import join
+from os.path import join, exists
 from os import walk
 from os import mkdir
+import os
 import sys
 import shutil
 import logging
@@ -63,6 +64,7 @@ class CallResponseModel:
         self.eval_session = None
 
     def build_dataset(self, data_dir):
+
         _LOGGER.debug(f'building dataset from {data_dir}')
 
         np.random.seed(self.seed)
@@ -85,7 +87,6 @@ class CallResponseModel:
                     full_path = join(dirName, fname)
                     try:
                         midi = pm.PrettyMIDI(full_path)
-                        print("midi", full_path)
                         assert len(midi.instruments[0].notes) > 2 # originally 3 but made 2 for dj data
                         cur_cr[num] = (self.encoder.encode(midi, instrument_index=0), fname)
                     except (AssertionError, IOError, KeyError):
@@ -112,6 +113,7 @@ class CallResponseModel:
             assert response.shape[0] == call_len
 
         num_examples = len(calls)
+
         num_training_examples = int(num_examples*(1.0-self.validation_ratio))
         indices = np.arange(num_examples, dtype=np.int32)
         np.random.shuffle(indices)
@@ -266,6 +268,7 @@ class CallResponseModel:
                 var.load(variable_values[var.name], session=sess)
 
             builder_path = join(model_path, 'inference_builder')
+
             try:
                 shutil.rmtree(builder_path)
             except OSError as e:
@@ -282,6 +285,7 @@ class CallResponseModel:
             json.dump(hparams['encoder_dict'], f)
 
     def train(self, dataset_path, output_path, reset_learning_rate):
+
         try:
             with open(join(output_path, 'dataset.p'), mode='rb') as f:
                 _LOGGER.debug('Loading dataset from file')
@@ -305,8 +309,9 @@ class CallResponseModel:
 
         with open(join(output_path, 'training_parameters.json'), mode='w') as f:
             json.dump(training_params, f)
-
+        # TODO: figure out the best way to set batch size depending on validation ratio. For now set equal to training set size
         num_training_examples = dataset['training_indices'].size
+        self.batch_size = num_training_examples
         num_batches, remainder = divmod(num_training_examples, self.batch_size)
         print("sample compare", num_training_examples, self.batch_size)
         if remainder != 0:
