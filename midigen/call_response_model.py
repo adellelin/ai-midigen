@@ -43,6 +43,7 @@ class CallResponseModel:
         self.gradient_clip = None
         self.keep_prob = None
         self.batch_size = None
+        self.dict_idx_shuffle = {}
 
         self._training_params = [
             'seed',
@@ -88,6 +89,7 @@ class CallResponseModel:
                     try:
                         midi = pm.PrettyMIDI(full_path)
                         assert len(midi.instruments[0].notes) > 2 # originally 3 but made 2 for dj data
+                        # encode midi track
                         cur_cr[num] = (self.encoder.encode(midi, instrument_index=0), fname)
                     except (AssertionError, IOError, KeyError):
                         _LOGGER.warning(f'Could not add midi file {join(dirName, fname)}.')
@@ -116,7 +118,11 @@ class CallResponseModel:
 
         num_training_examples = int(num_examples*(1.0-self.validation_ratio))
         indices = np.arange(num_examples, dtype=np.int32)
+        original_indices = indices
         np.random.shuffle(indices)
+
+        # create a dictionary to hold the original indeces and shuffled indeces
+        self.dict_idx_shuffle = dict(zip(original_indices, indices))
 
         dataset = {
             'calls': np.swapaxes(np.stack(calls), 0, 1),
@@ -130,6 +136,7 @@ class CallResponseModel:
         return dataset
 
     def core_graph(self, inputs, target_response):
+
         batch_size = tf.shape(inputs)[1]
 
         with tf.variable_scope('encoder', reuse=tf.AUTO_REUSE) as scope:
@@ -309,14 +316,25 @@ class CallResponseModel:
 
         with open(join(output_path, 'training_parameters.json'), mode='w') as f:
             json.dump(training_params, f)
-        # TODO: figure out the best way to set batch size depending on validation ratio. For now set equal to training set size
+
         num_training_examples = dataset['training_indices'].size
+
+        # TODO: figure out the best way to set batch size depending on validation ratio. For now set equal to training set size
         self.batch_size = num_training_examples
+
         num_batches, remainder = divmod(num_training_examples, self.batch_size)
         print("sample compare", num_training_examples, self.batch_size)
         if remainder != 0:
             raise ValueError(f'num of training examples ({num_training_examples}) must be an '
                              f'integer multiple of batch size ({self.batch_size})')
+        #
+        # #TODO: CHECK IF MIDI IS SELECTED SAMPLES TO BE WEIGHTED
+        # for dirName, subdirList, fileList in walk(dataset_path):
+        #     for fname in fileList:
+        #         if fname.endswith('.mid') and not fname[0] == '.':
+        #             num = int(fname.replace('.mid', '').replace(' ', '_').split('_')[-1])
+        # if num == 0:
+        #     print("we're at sample number one")
 
         try:
             tf.reset_default_graph()
@@ -360,10 +378,40 @@ class CallResponseModel:
                     json.dump(core_variable_map, f)
 
                 # similarity of output distribution and expected distribution
+                # cross entropy calculated indepently each sample, each time stamp
+                #  dim = 2 is feature axis
+                print("outputs shape", outputs.shape)
+
+                # set weight shape as number of samples by training examples - here samples is timesteps
+                sample_weight = np.ones(shape=(response_samples, num_training_examples))
+
+                #TODO: verify sample weighting for more obvious samples in dataset
+                # #one_weight = sample_weight
+                # #imamura up to 248
+                # idx_for_weights = np.arange(1, 248/2+1) #
+                # print("original", idx_for_weights.shape, idx_for_weights)
+                # print("dict", self.dict_idx_shuffle)
+                # shuffled_idx_for_weights = []
+                # print(sample_weight.shape)
+                # for k,v in enumerate(self.dict_idx_shuffle):
+                #     if k in idx_for_weights:
+                #         shuffled_idx_for_weights.append(v)
+                # print("shuffled", len(shuffled_idx_for_weights), shuffled_idx_for_weights)
+                # count = 0
+                # for i, val in enumerate(shuffled_idx_for_weights):
+                #     # if there is an overlap of the sample indices to be weighted in the final shuffled indeces
+                #     # eg. samples [1, 2] are to be weighted more heavily, if 1, 2 (val) has been shuffled to 10, 20(i),
+                #     # replace the weights in i as lower
+                #     if val in idx_for_weights:
+                #         count+=1
+                #         sample_weight[:,i]=0.5
+                # print(sample_weight[0])
+
                 with tf.variable_scope('loss'):
                     cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(
-                        labels=batch_responses, logits=outputs, dim=2)
-                    total_cross_entropy = tf.reduce_sum(cross_entropy)
+                        labels=batch_responses, logits=outputs, dim=2) # no examples by timesteps
+                    weighted_cross_entropy =  cross_entropy * sample_weight #TODO
+                    total_cross_entropy = tf.reduce_sum(weighted_cross_entropy)
 
                 total_loss = total_cross_entropy
 
@@ -451,7 +499,8 @@ class CallResponseModel:
                         feed = {keep_prob: 1}
                         cur_hp_summary, = sess.run([hyper_parameter_summary], feed_dict=feed)
                         writer.add_summary(cur_hp_summary, global_step=epoch_n)
-
+                        #print('dataset', dataset['training_indices'])
+                        #print('dataset', dataset['validation_indices'])
                         feed = {batch_indices: dataset['training_indices'], keep_prob: 1}
                         summary, train_entropy, min_updated, min_loss_value, min_loss_epoch_value = sess.run([
                             train_merged,
