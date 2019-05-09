@@ -1,14 +1,16 @@
 import argparse
-from os.path import expanduser, join
-from os import mkdir
+from os.path import expanduser, join, isdir
+from os import mkdir, walk
 from errno import EEXIST
 import pickle
 import pretty_midi as pm
 from midigen.call_response_model import EvalModel
-
+from shutil import copyfile
 
 def main():
     parser = argparse.ArgumentParser('Generate validation response tracks from a trained call/response model')
+    parser.add_argument(
+        'ori_data_path', help='path to original')
     parser.add_argument(
         'dataset_path', help='path to the pickled dataset')
     parser.add_argument(
@@ -20,6 +22,9 @@ def main():
     args = parser.parse_args()
 
     output_path = expanduser(args.output_path)
+    print(output_path)
+    ori_datapath = expanduser(args.ori_data_path)
+
     try:
         mkdir(output_path)
     except OSError as e:
@@ -35,6 +40,7 @@ def main():
         dataset = pickle.load(f)
 
     validation_calls = dataset['calls'][:, dataset['validation_indices'], :]
+
     validation_responses = model.evaluate(validation_calls)
 
     training_calls = dataset['calls'][:, dataset['training_indices'], :]
@@ -48,6 +54,7 @@ def main():
         for example_n in range(call.shape[1]):
             cur_call = call[:, example_n]
             cur_call_mid = model.encoder.decode(cur_call, program=call_program)
+            cur_call_mid.write(join(output_path, f'{filename_prefix}_call_{example_n}.mid'))
             cur_call_mid.write(join(output_path, f'{filename_prefix}_call_{example_n}.mid'))
             midis.append(cur_call_mid)
 
@@ -67,15 +74,39 @@ def main():
     training_track_path = join(output_path, 'training.mid')
     build_midi(training_calls, training_responses, 'training').write(training_track_path)
 
+    # debug the tracks set aside for validation
+    validation_call_fnames = []
+    original_resp_fnames = []
+
     try:
         call_fnames = dataset['call_fnames']
+        resp_fnames = dataset['response_fnames']
     except KeyError:
         pass
     else:
         with open(join(output_path, 'valid_call_fnames.csv'), mode='w') as f:
             for idx in dataset['validation_indices']:
                 fname = call_fnames[idx]
+                resp_fname = resp_fnames[idx]
+                validation_call_fnames.append(fname)
+                original_resp_fnames.append(resp_fname)
+                print("validation call", fname)
                 f.write(fname+'\n')
+
+    valid_cpath = args.output_path+'/valid_call/'
+    if (isdir(valid_cpath) == False):
+        mkdir(valid_cpath)
+
+    valid_rpath = args.output_path + '/valid_resp/'
+    if (isdir(valid_rpath) == False):
+        mkdir(valid_rpath)
+
+    for root, dir, files in walk(ori_datapath):
+        for file in files:
+            if file in validation_call_fnames:
+                copyfile(join(root,file), valid_cpath+file)
+            if file in original_resp_fnames:
+                copyfile(join(root,file), valid_rpath+file)
 
 
 def concat(midis, min_len=None):
