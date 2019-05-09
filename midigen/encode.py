@@ -7,7 +7,6 @@ import pretty_midi as pm
 from scipy.ndimage import convolve1d
 from midigen.package import logger
 
-
 _LOGGER = logging.getLogger('midigen-encoder')
 
 
@@ -83,6 +82,7 @@ class PolyEncoder(Encoder):
                 _LOGGER.warning(f'Ignoring disallowed pitch: {note.pitch}')
                 continue
 
+            # quantize each note
             start_sample = int(np.ceil(note.start*self.sample_frequency))
             end_sample = int(np.floor(note.end*self.sample_frequency))
             pitch_index = self.pitch_to_index[note.pitch]
@@ -213,6 +213,7 @@ class MelodyEncoder(Encoder):
         hit_map = np.zeros((self.num_symbols, self.num_time_steps))
         # go through all notes, filters out notes that aren't within the allowed pitches
         for note in inst.notes:
+            self.note_pitches.append(note.pitch)
             if note.pitch not in self.allowed_pitches:
                 logger.warn('ignoring unsupported pitch = ' + str(note.pitch))
                 continue
@@ -229,10 +230,10 @@ class MelodyEncoder(Encoder):
             release_map[symbol_n, release_n] = 1.0
             hit_n = min(int(note.start * self.time_resolution), self.num_time_steps - 1)
             hit_map[symbol_n, hit_n] = 1.0
-            self.note_pitches.append(note.pitch)
+
 
         # use this line to gather which pitches are in dataset
-        #print("pitches", set(self.note_pitches))
+        print("pitches", set(self.note_pitches))
 
         release_hit_map = np.logical_and(release_map, hit_map)
 
