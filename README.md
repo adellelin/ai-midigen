@@ -65,6 +65,10 @@ done with curl as follows:
 curl --data-binary "@example_call.mid" http://localhost:5000/tfgen > ~/example_response.mid
 ```
 
+pass a folder of midi tracks to the crserver
+``` bash
+python test_call_response_server.py
+```
 
 ### interface
 To do live generation, start an interface which interacts with max.
@@ -87,9 +91,12 @@ Open the ableton project which should be installed to:
 ```
 
 
-
 ### training
 To generate a model of your own data, start a training and watch it for a long time.
+
+create a directory for you new model within the model directory. 
+
+create a readme.md file to document training related metadata.
 
 create a directory for the trained model and checkpoint files : **TRAINING_OUT**
 
@@ -97,18 +104,34 @@ pull all your data or our dataset into a reasonable place : **TRAINING_DATA/BASS
 
 create a encoder.json (or use one for our \models) for all the training parameters: **TRAINING_DATA/BASS/encoder.json**
 
+to check what notes are in the midi files, run training once, this will debug a set of the notes in all the tracks, edit the encoder.json file accordingly
+
+!! delete the output folder that got created in order for the new note pitches in the json file to be applied
+
 ```
 {"allowed_pitches": [27, 29, 31, 32, 34, 36, 38, 39, 41, 43, 44, 46, 48, 51, 53, 55, 56, 58, 63, 72, 74, 68, 60, 62, 54, 65, 79, 75, 54, 67, 64, 69, 70, 79], "time_resolution": 8, "num_bars": 4, "bar_time": 2, "encoder_type": "MelodyEncoder"}
 ```
 
-
 kick-off a training like so, if you've used the paths above:
 
-batch size is number of pairs
+batch size is number of pairs (currently batch size is created in the model as = to the number of training tracks -> full track count - validation tracks)
 
+record the first set of training results and add to the readme.md
 
 ```
 train_crmodel TRAINING_DATA/BASS/  TRAINING_OUT/ TRAINING_DATA/BASS/encoder.json --hidden_code_size 50 --max_response_length 64 --float_type float32 --batch_size 247 --validation_ratio 0.05 --gradient_clip 5 --learning_rate 1e-3 --keep_prob 1 --seed 1
+```
+
+### generate
+
+Stop the model early to generate the output early results during training to check that shape of output is correct and to have an
+output folder that tensorbaord can point to. The generate scripts points to your **TRAINING_OUT** .  
+You'll need to ctrl-c out of your train_crmodel. this will trigger some checkout files and a put the best model into **TRAINING_OUT/inference_builder**
+Copy the contents of the inference builder into your new model folder. Copy the final cross entropy loss logs into the readme.md.
+Copy the validation.mid into the new model folder
+
+```
+generate TRAINING_OUT/dataset.p TRAINING_OUT/inference_builder TRAINING_OUT 2
 ```
 
 #### tensorboard
@@ -120,14 +143,8 @@ tensorboard --logdir=path/to/TRAINING_OUT/
 
 Then go to ```localhost:6006``` in a web browser
 
-### generate
+When the model converges, take a screenshot and put that into your new model folder.
 
-
-there is a process for generating early results during training. the generate scripts points to your **TRAINING_OUT** .  you'll need to ctrl-c out of your train_crmodel. this will trigger some checkout files and a put the best model into **TRAINING_OUT/inference_builder**
-
-```
-generate TRAINING_OUT/dataset.p TRAINING_OUT/inference_builder TRAINING_OUT
-```
 
 
 
