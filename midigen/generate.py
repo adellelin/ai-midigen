@@ -93,14 +93,16 @@ def main():
                 print("validation call", fname)
                 f.write(fname+'\n')
 
-    valid_cpath = args.output_path+'/valid_call/'
+    valid_cpath = args.output_path+'/valid_original_call/'
     if (isdir(valid_cpath) == False):
         mkdir(valid_cpath)
 
-    valid_rpath = args.output_path + '/valid_resp/'
+    valid_rpath = args.output_path + '/valid_original_resp/'
     if (isdir(valid_rpath) == False):
         mkdir(valid_rpath)
 
+    # make a copy of original calls and responses to another directory
+    # this is for easy validation
     for root, dir, files in walk(ori_datapath):
         for file in files:
             if file in validation_call_fnames:
