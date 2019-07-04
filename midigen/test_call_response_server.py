@@ -12,10 +12,14 @@ crserver_url = 'http://127.0.0.1:5000/tfgen'
 this_dir = split(abspath(__file__))[0]
 #test_file = join(this_dir, 'test', 'full_call_61.mid') # full_call_8.mid, full_call_12.mid, full_call_37.mid, full_call_43.mid
 #output_dir = expanduser('~')
-output_dir = '/Users/adelleli/Documents/Git/ai-midigen/midigen/R2_SET04_weighted_response/'
-directory = join(this_dir, 'R2_SET04_weighted_call')
-output_fname_prefix = 'R2_04_w_'
+output_dir = '/Users/adelleli/Documents/Git/ai-midigen/midigen/M3_SET01_valid_response/'
+# name of the folder containing calls
+directory = join(this_dir, 'M3_SET01_valid_original_call')
+output_fname_prefix = 'M3_01_'
 print(directory)
+
+if not os.path.exists(output_dir):
+    os.mkdir(output_dir)
 
 for root, dirs, files in os.walk(directory):
     print(root, dirs, files, directory)
