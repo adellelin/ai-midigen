@@ -11,6 +11,7 @@ import atexit
 from errno import EEXIST
 from errno import ENOENT
 import numpy as np
+import time
 import tensorflow as tf
 from tensorflow.python.saved_model.builder import SavedModelBuilder
 from tensorflow.python.saved_model import loader as tf_loader
@@ -385,7 +386,7 @@ class CallResponseModel:
                 # set weight shape as number of samples by training examples - here samples is timesteps
                 sample_weight = np.ones(shape=(response_samples, num_training_examples))
 
-                #TODO: verify sample weighting for more obvious samples in dataset
+                # TODO: verify sample weighting for more obvious samples in dataset
                 # #one_weight = sample_weight
                 # #imamura up to 248
                 # idx_for_weights = np.arange(1, 248/2+1) #
@@ -404,7 +405,7 @@ class CallResponseModel:
                 #     # replace the weights in i as lower
                 #     if val in idx_for_weights:
                 #         count+=1
-                #         sample_weight[:,i]=0.5
+                #         sample_weight[:,i]=10
                 # print(sample_weight[0])
 
                 with tf.variable_scope('loss'):
@@ -492,8 +493,12 @@ class CallResponseModel:
                     _LOGGER.info(f'Reseting learning rate to {self.learning_rate}')
                     learning_rate.load(self.learning_rate)
 
+                startT = time.time()
+                t = 0
                 while True:
                     epoch_n, = sess.run([epoch])
+                    if epoch_n % 10 == 0:
+                        print("FIRST EPOCH")
 
                     if epoch_n % 100 == 0:
                         feed = {keep_prob: 1}
@@ -519,6 +524,12 @@ class CallResponseModel:
                         _LOGGER.info(f'training entropy: {train_entropy}')
                         _LOGGER.info(f'minimum loss: {min_loss_value}')
                         _LOGGER.info(f'minimum loss epoch: {min_loss_epoch_value}')
+
+                        if (epoch_n == 100):
+                            t = time.time()
+                        if (epoch_n == 1100):
+                            print('1000 epoch take {0}s'.format(time.time() - t))
+                            # exit()
 
                         if min_updated:
                             rewind_saver.save(sess, join(rewind_path, 'checkpoint'),
@@ -560,6 +571,7 @@ class CallResponseModel:
                     sess.run([increment_epoch])
         except KeyboardInterrupt:
             CallResponseModel.inference_model(output_path, self.hparams)
+            print('epoch take {0}s'.format(time.time() - startT))
             sys.exit(0)
 
 
