@@ -145,6 +145,13 @@ Then go to ```localhost:6006``` in a web browser
 
 When the model converges, take a screenshot and put that into your new model folder.
 
+#### inferencing to generate responses
+To generate responses from a folder, you'll need to cd into midigen folder and run:
+
+```
+python test_call_response_server.py
+```
+Make sure to change the output_dir and directory parameters in the script
 
 
 
